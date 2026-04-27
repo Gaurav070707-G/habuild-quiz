@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -18,62 +18,120 @@ type TabType = 'overview' | 'top100' | 'citywise';
 export default function Dashboard() {
   const [winners, setWinners] = useState<Winner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCity, setSelectedCity] = useState<string>('');
+  const [top100Page, setTop100Page] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError('');
+    let unsubscribe: (() => void) | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isMounted = true;
 
-    try {
-      // Real-time listener from Firebase
-      const q = query(collection(db, 'winners'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const winnersData: Winner[] = [];
-        snapshot.forEach((doc) => {
-          winnersData.push(doc.data() as Winner);
+    const loadData = async () => {
+      try {
+        // 5-second timeout for Firebase connection
+        timeoutId = setTimeout(() => {
+          if (isMounted && loading) {
+            setError('Firebase connection timed out. Showing cached data.');
+            const stored = localStorage.getItem('habitBuiltWinners');
+            if (stored) {
+              setWinners(JSON.parse(stored));
+            }
+            setLoading(false);
+            if (unsubscribe) unsubscribe();
+          }
+        }, 5000);
+
+        // Real-time listener from Firebase
+        const q = query(collection(db, 'winners'));
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          if (!isMounted) return;
+
+          const winnersData: Winner[] = [];
+          snapshot.forEach((doc) => {
+            winnersData.push(doc.data() as Winner);
+          });
+
+          if (timeoutId) clearTimeout(timeoutId);
+          setWinners(winnersData);
+          setLoading(false);
+          setError('');
+
+          // Cache to localStorage
+          localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
+        }, (error) => {
+          if (!isMounted) return;
+
+          if (timeoutId) clearTimeout(timeoutId);
+          console.error('Firebase error:', error);
+          setError('Failed to connect to database');
+
+          const stored = localStorage.getItem('habitBuiltWinners');
+          if (stored) {
+            setWinners(JSON.parse(stored));
+          }
+          setLoading(false);
         });
-        setWinners(winnersData);
-        setLoading(false);
-      });
+      } catch (error) {
+        if (!isMounted) return;
 
-      return unsubscribe;
-    } catch (error) {
-      console.error('Error fetching winners:', error);
-      // Fallback to localStorage
-      const stored = localStorage.getItem('habitBuiltWinners');
-      if (stored) {
-        setWinners(JSON.parse(stored));
+        if (timeoutId) clearTimeout(timeoutId);
+        console.error('Error initializing dashboard:', error);
+        setError('Failed to initialize dashboard');
+        setLoading(false);
       }
-      setLoading(false);
-    }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
-  const totalParticipants = winners.length;
-  const totalWinners = winners.filter((w) => w.score >= 8).length;
+  const totalParticipants = useMemo(() => winners.length, [winners]);
+  const totalWinners = useMemo(() => winners.filter((w) => w.score >= 8).length, [winners]);
 
-  const prizeStats = winners.reduce(
-    (acc, w) => {
-      acc[w.prize] = (acc[w.prize] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const prizeStats = useMemo(() => {
+    return winners.reduce(
+      (acc, w) => {
+        acc[w.prize] = (acc[w.prize] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+  }, [winners]);
 
-  // Get top 100 by score
-  const top100 = [...winners]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 100);
+  const top100Full = useMemo(() => {
+    return [...winners]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 100);
+  }, [winners]);
 
-  // Get unique cities
-  const cities = [...new Set(winners.map((w) => w.city))].sort();
+  const itemsPerPage = 25;
+  const top100 = useMemo(() => {
+    return top100Full.slice(top100Page * itemsPerPage, (top100Page + 1) * itemsPerPage);
+  }, [top100Full, top100Page]);
 
-  // Get top 10 for selected city
-  const cityTop10 = selectedCity
-    ? [...winners]
-        .filter((w) => w.city === selectedCity)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10)
-    : [];
+  const top100Pages = Math.ceil(top100Full.length / itemsPerPage);
+
+  const cities = useMemo(() => {
+    return [...new Set(winners.map((w) => w.city))].sort();
+  }, [winners]);
+
+  const cityTop10 = useMemo(() => {
+    return selectedCity
+      ? [...winners]
+          .filter((w) => w.city === selectedCity)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 10)
+      : [];
+  }, [selectedCity, winners]);
 
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
@@ -82,7 +140,11 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-purple-100 flex items-center justify-center p-4">
-        <div className="text-2xl text-gray-700">Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-purple-600 mx-auto mb-4"></div>
+          <div className="text-2xl text-gray-700">Loading Dashboard...</div>
+          <div className="text-sm text-gray-600 mt-2">(This may take up to 5 seconds)</div>
+        </div>
       </div>
     );
   }
@@ -96,6 +158,11 @@ export default function Dashboard() {
             Habuild Yoga Quiz Dashboard 🧘
           </h1>
           <p className="text-gray-700">Track quiz participants and leaderboards</p>
+          {error && (
+            <div className="mt-4 p-4 bg-amber-100 border border-amber-400 rounded-lg">
+              <p className="text-amber-800 text-sm">{error}</p>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -217,43 +284,66 @@ export default function Dashboard() {
             {activeTab === 'top100' && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">🏆 Top 100 Leaderboard</h2>
-                {top100.length === 0 ? (
+                {top100Full.length === 0 ? (
                   <p className="text-gray-600 text-center py-8">No participants yet!</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b-2 border-gray-300">
-                          <th className="p-3 font-semibold text-gray-700">Rank</th>
-                          <th className="p-3 font-semibold text-gray-700">Name</th>
-                          <th className="p-3 font-semibold text-gray-700">City</th>
-                          <th className="p-3 font-semibold text-gray-700">Score</th>
-                          <th className="p-3 font-semibold text-gray-700">Prize</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {top100.map((winner, idx) => (
-                          <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
-                            <td className="p-3 font-bold text-gray-800">#{idx + 1}</td>
-                            <td className="p-3 text-gray-800">{winner.name}</td>
-                            <td className="p-3 text-gray-800">{winner.city}</td>
-                            <td className="p-3">
-                              <span
-                                className={`px-3 py-1 rounded-full font-semibold text-xs ${
-                                  winner.score >= 13
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}
-                              >
-                                {winner.score}/15
-                              </span>
-                            </td>
-                            <td className="p-3 text-gray-800">{winner.prize}</td>
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b-2 border-gray-300">
+                            <th className="p-3 font-semibold text-gray-700">Rank</th>
+                            <th className="p-3 font-semibold text-gray-700">Name</th>
+                            <th className="p-3 font-semibold text-gray-700">City</th>
+                            <th className="p-3 font-semibold text-gray-700">Score</th>
+                            <th className="p-3 font-semibold text-gray-700">Prize</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {top100.map((winner, idx) => (
+                            <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50">
+                              <td className="p-3 font-bold text-gray-800">#{top100Page * itemsPerPage + idx + 1}</td>
+                              <td className="p-3 text-gray-800">{winner.name}</td>
+                              <td className="p-3 text-gray-800">{winner.city}</td>
+                              <td className="p-3">
+                                <span
+                                  className={`px-3 py-1 rounded-full font-semibold text-xs ${
+                                    winner.score >= 13
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {winner.score}/15
+                                </span>
+                              </td>
+                              <td className="p-3 text-gray-800">{winner.prize}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {top100Pages > 1 && (
+                      <div className="mt-6 flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setTop100Page((p) => Math.max(0, p - 1))}
+                          disabled={top100Page === 0}
+                          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 disabled:opacity-50 hover:bg-gray-300"
+                        >
+                          ← Previous
+                        </button>
+                        <span className="text-gray-700 font-semibold">
+                          Page {top100Page + 1} of {top100Pages}
+                        </span>
+                        <button
+                          onClick={() => setTop100Page((p) => Math.min(top100Pages - 1, p + 1))}
+                          disabled={top100Page === top100Pages - 1}
+                          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 disabled:opacity-50 hover:bg-gray-300"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
