@@ -98,6 +98,32 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Phone Directory */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">📱 Phone Directory</h2>
+          {submissions.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No responses yet</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...submissions].map((sub, i) => (
+                <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
+                  <div className="font-semibold text-gray-800">{sub.name}</div>
+                  <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📞</span>
+                    <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold">
+                      {sub.phone}
+                    </a>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-600">
+                    Score: <span className="font-bold text-indigo-600">{sub.score}/10</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Top Scorers */}
           <div className="bg-white rounded-xl shadow-md p-6">
