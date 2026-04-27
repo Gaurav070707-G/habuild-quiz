@@ -26,70 +26,95 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout | null = null;
+    let unsubscribe: (() => void) | null = null;
 
-    const loadData = async () => {
+    const loadData = () => {
       // Load cached data immediately
       const cached = localStorage.getItem('habitBuiltWinners');
       if (cached) {
         try {
-          setWinners(JSON.parse(cached));
+          const data = JSON.parse(cached);
+          setWinners(data);
           setLoading(false);
+          console.log('Loaded from cache:', data.length, 'winners');
         } catch (e) {
           console.error('Failed to parse cached data:', e);
+          setLoading(true);
         }
+      } else {
+        setLoading(true);
       }
 
-      // Fetch fresh data from Firebase with 3-second timeout
+      // Set timeout to show error if Firebase is too slow
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          const cached = localStorage.getItem('habitBuiltWinners');
+          if (!cached) {
+            console.warn('Firebase timeout - no cached data available');
+            setError('Taking longer than expected. Please try refreshing.');
+            setLoading(false);
+          }
+        }
+      }, 4000);
+
       try {
-        timeoutId = setTimeout(() => {
-          if (isMounted) {
-            if (!cached) {
-              setError('Firebase is taking too long. Please try again later.');
+        // Fetch from Firebase with real-time listener
+        const q = query(collection(db, 'winners'));
+        unsubscribe = onSnapshot(
+          q,
+          (snapshot) => {
+            if (!isMounted) return;
+
+            const winnersData: Winner[] = [];
+            snapshot.forEach((doc: any) => {
+              winnersData.push(doc.data() as Winner);
+            });
+
+            console.log('Loaded from Firebase:', winnersData.length, 'winners');
+
+            if (timeoutId) clearTimeout(timeoutId);
+            setWinners(winnersData);
+            setLoading(false);
+            setError('');
+
+            // Cache to localStorage
+            try {
+              localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
+            } catch (e) {
+              console.warn('Failed to cache data:', e);
+            }
+          },
+          (error) => {
+            if (!isMounted) return;
+
+            console.error('Firebase listener error:', error);
+
+            if (timeoutId) clearTimeout(timeoutId);
+
+            const cached = localStorage.getItem('habitBuiltWinners');
+            if (cached) {
+              try {
+                const data = JSON.parse(cached);
+                setWinners(data);
+                setError('Using cached data (offline)');
+                setLoading(false);
+              } catch (e) {
+                setError('Failed to load data');
+                setLoading(false);
+              }
+            } else {
+              setError('Unable to connect to database');
               setLoading(false);
             }
           }
-        }, 3000);
-
-        const q = query(collection(db, 'winners'));
-        const snapshot = await new Promise<QuerySnapshot>((resolve, reject) => {
-          const unsubscribe = onSnapshot(
-            q,
-            (snap) => {
-              unsubscribe();
-              resolve(snap);
-            },
-            reject
-          );
-        });
-
-        if (!isMounted) return;
-
-        const winnersData: Winner[] = [];
-        snapshot.forEach((doc: any) => {
-          winnersData.push(doc.data() as Winner);
-        });
-
-        if (timeoutId) clearTimeout(timeoutId);
-        setWinners(winnersData);
-        setLoading(false);
-        setError('');
-
-        // Cache to localStorage
-        localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
+        );
       } catch (error) {
         if (!isMounted) return;
 
+        console.error('Error setting up Firebase listener:', error);
         if (timeoutId) clearTimeout(timeoutId);
-        console.error('Firebase error:', error);
-
-        const cached = localStorage.getItem('habitBuiltWinners');
-        if (cached) {
-          setError('Using cached data - offline mode');
-          setLoading(false);
-        } else {
-          setError('Failed to load data. Please refresh the page.');
-          setLoading(false);
-        }
+        setError('Failed to initialize');
+        setLoading(false);
       }
     };
 
@@ -98,6 +123,7 @@ export default function Dashboard() {
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
+      if (unsubscribe) unsubscribe();
     };
   }, []);
 
