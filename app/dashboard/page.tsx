@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 interface Winner {
   name: string;
@@ -21,7 +19,7 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState<string>('');
 
   useEffect(() => {
-    // Load from localStorage IMMEDIATELY - never block UI
+    // Load from localStorage only - instant and no dependencies
     const stored = localStorage.getItem('habitBuiltWinners');
     if (stored) {
       try {
@@ -30,48 +28,6 @@ export default function Dashboard() {
         console.error('Failed to parse localStorage data:', e);
       }
     }
-
-    // Try Firebase in background with timeout (3 seconds max)
-    let unsubscribe: (() => void) | null = null;
-    let firebaseTimeout: NodeJS.Timeout | null = null;
-
-    try {
-      firebaseTimeout = setTimeout(() => {
-        console.log('Firebase taking too long, using localStorage');
-        if (unsubscribe) unsubscribe();
-      }, 3000);
-
-      const q = query(collection(db, 'winners'));
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          if (firebaseTimeout) clearTimeout(firebaseTimeout);
-          const winnersData: Winner[] = [];
-          snapshot.forEach((doc) => {
-            winnersData.push(doc.data() as Winner);
-          });
-          // Only update if we got different data
-          if (winnersData.length > 0) {
-            setWinners(winnersData);
-            console.log('Firebase loaded:', winnersData.length, 'records');
-          }
-        },
-        (error) => {
-          if (firebaseTimeout) clearTimeout(firebaseTimeout);
-          console.error('Firebase error, using localStorage:', error);
-        }
-      );
-    } catch (error) {
-      if (firebaseTimeout) clearTimeout(firebaseTimeout);
-      console.error('Firebase setup error:', error);
-    }
-
-    return () => {
-      if (firebaseTimeout) clearTimeout(firebaseTimeout);
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
   }, []);
 
   // Derived data calculations
