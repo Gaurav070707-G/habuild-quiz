@@ -17,72 +17,54 @@ type TabType = 'overview' | 'top100' | 'citywise';
 
 export default function Dashboard() {
   const [winners, setWinners] = useState<Winner[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedCity, setSelectedCity] = useState<string>('');
 
   useEffect(() => {
-    // Load from localStorage immediately
+    // Load from localStorage IMMEDIATELY - never block UI
     const stored = localStorage.getItem('habitBuiltWinners');
     if (stored) {
-      setWinners(JSON.parse(stored));
-      setLoading(false);
-    } else {
-      setLoading(true);
+      try {
+        setWinners(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse localStorage data:', e);
+      }
     }
 
+    // Try Firebase in background (non-blocking)
     let unsubscribe: (() => void) | null = null;
-    let firebaseTimeout: NodeJS.Timeout | null = null;
 
     try {
-      // Set timeout for Firebase response (5 seconds)
-      firebaseTimeout = setTimeout(() => {
-        console.warn('Firebase took too long, using localStorage');
-      }, 5000);
-
-      // Real-time listener from Firebase
       const q = query(collection(db, 'winners'));
       unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          if (firebaseTimeout) clearTimeout(firebaseTimeout);
           const winnersData: Winner[] = [];
           snapshot.forEach((doc) => {
             winnersData.push(doc.data() as Winner);
           });
-          setWinners(winnersData);
-          setLoading(false);
+          // Only update if we got different data
+          if (winnersData.length > 0) {
+            setWinners(winnersData);
+          }
         },
         (error) => {
-          // Firebase error callback - fallback to localStorage
-          if (firebaseTimeout) clearTimeout(firebaseTimeout);
-          console.error('Firebase error, using localStorage:', error);
-          const stored = localStorage.getItem('habitBuiltWinners');
-          if (stored) {
-            setWinners(JSON.parse(stored));
-          }
-          setLoading(false);
+          // Firebase failed - just log it, use localStorage
+          console.error('Firebase error:', error);
         }
       );
     } catch (error) {
-      if (firebaseTimeout) clearTimeout(firebaseTimeout);
-      console.error('Error setting up Firebase listener:', error);
-      // Fallback to localStorage
-      const stored = localStorage.getItem('habitBuiltWinners');
-      if (stored) {
-        setWinners(JSON.parse(stored));
-      }
-      setLoading(false);
+      console.error('Firebase setup error:', error);
     }
 
     return () => {
-      if (firebaseTimeout) clearTimeout(firebaseTimeout);
       if (unsubscribe) {
         unsubscribe();
       }
     };
   }, []);
 
+  // Derived data calculations
   const totalParticipants = winners.length;
   const totalWinners = winners.filter((w) => w.score >= 8).length;
 
@@ -94,33 +76,18 @@ export default function Dashboard() {
     {} as Record<string, number>
   );
 
-  // Get top 100 by score
   const top100 = [...winners]
     .sort((a, b) => b.score - a.score)
     .slice(0, 100);
 
-  // Get unique cities
   const cities = [...new Set(winners.map((w) => w.city))].sort();
 
-  // Get top 10 for selected city
   const cityTop10 = selectedCity
     ? [...winners]
         .filter((w) => w.city === selectedCity)
         .sort((a, b) => b.score - a.score)
         .slice(0, 10)
     : [];
-
-  const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-purple-100 flex items-center justify-center p-4">
-        <div className="text-2xl text-gray-700">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-purple-100 p-4 md:p-8">
