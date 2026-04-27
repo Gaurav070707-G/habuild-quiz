@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { collection, query, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Submission {
   name: string;
@@ -11,15 +13,39 @@ interface Submission {
   timestamp: string;
 }
 
-export default function Dashboard() {
-  const [selectedCity, setSelectedCity] = useState('');
+const ITEMS_PER_PAGE = 50;
 
-  // Load data from localStorage on mount
-  const [submissions] = useState<Submission[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem('habitBuiltWinners');
-    return stored ? JSON.parse(stored) : [];
-  });
+export default function Dashboard() {
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Fetch from Firebase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const q = query(collection(db, 'winners'));
+        const snapshot = await getDocs(q);
+        const data: Submission[] = [];
+        snapshot.forEach(doc => {
+          data.push(doc.data() as Submission);
+        });
+        setSubmissions(data);
+        console.log(`Loaded ${data.length} submissions from Firebase`);
+      } catch (error) {
+        console.error('Firebase error:', error);
+        // Fallback to localStorage
+        const stored = localStorage.getItem('habitBuiltWinners');
+        if (stored) {
+          setSubmissions(JSON.parse(stored));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Memoized calculations
   const stats = useMemo(() => ({
@@ -54,16 +80,21 @@ export default function Dashboard() {
     return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
   }, [submissions]);
 
+  // Pagination for recent responses
+  const paginatedSubmissions = useMemo(() => {
+    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+    return [...submissions].reverse().slice(startIdx, startIdx + ITEMS_PER_PAGE);
+  }, [submissions, currentPage]);
+
+  const totalPages = Math.ceil(submissions.length / ITEMS_PER_PAGE);
+
   const downloadCSV = () => {
     if (submissions.length === 0) {
       alert('No data to download');
       return;
     }
 
-    // CSV headers
     const headers = ['Name', 'Phone', 'City', 'Score', 'Prize', 'Timestamp'];
-
-    // CSV rows
     const rows = submissions.map(s => [
       `"${s.name}"`,
       `"${s.phone}"`,
@@ -73,19 +104,17 @@ export default function Dashboard() {
       new Date(s.timestamp).toLocaleString()
     ]);
 
-    // Combine headers and rows
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.join(','))
     ].join('\n');
 
-    // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
 
     link.setAttribute('href', url);
-    link.setAttribute('download', `quiz_responses_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `quiz_responses_${submissions.length}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
 
     document.body.appendChild(link);
@@ -93,21 +122,33 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <p className="text-2xl font-bold text-indigo-900">Loading {submissions.length} submissions...</p>
+          <p className="text-indigo-700 mt-2">Fetching data from Firebase</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-10 flex items-center justify-between">
+        <div className="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-5xl font-bold text-indigo-900 mb-2">📊 Quiz Dashboard</h1>
-            <p className="text-indigo-700 text-lg">Real-time participant tracking</p>
+            <p className="text-indigo-700 text-lg">Live data from {submissions.length} participants</p>
           </div>
           <button
             onClick={downloadCSV}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition flex items-center gap-2"
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition flex items-center gap-2 whitespace-nowrap"
           >
             <span>📥</span>
-            <span>Download CSV</span>
+            <span>Download {submissions.length} CSV</span>
           </button>
         </div>
 
@@ -146,36 +187,10 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Phone Directory */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">📱 Phone Directory</h2>
-          {submissions.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No responses yet</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...submissions].map((sub, i) => (
-                <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
-                  <div className="font-semibold text-gray-800">{sub.name}</div>
-                  <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📞</span>
-                    <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold">
-                      {sub.phone}
-                    </a>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-600">
-                    Score: <span className="font-bold text-indigo-600">{sub.score}/10</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Top Scorers */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Top Scorers</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Top 20 Scorers</h2>
             {topScores.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No responses yet</p>
             ) : (
@@ -232,52 +247,108 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Responses */}
+        {/* Phone Directory */}
         <div className="bg-white rounded-xl shadow-md p-6 mt-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 Recent Responses (Last 10)</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">📱 Phone Directory ({submissions.length})</h2>
+          {submissions.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No responses yet</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...submissions].map((sub, i) => (
+                <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
+                  <div className="font-semibold text-gray-800">{sub.name}</div>
+                  <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📞</span>
+                    <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
+                      {sub.phone}
+                    </a>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-600">
+                    Score: <span className="font-bold text-indigo-600">{sub.score}/10</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Responses with Pagination */}
+        <div className="bg-white rounded-xl shadow-md p-6 mt-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 All Responses (Page {currentPage}/{totalPages})</h2>
           {submissions.length === 0 ? (
             <p className="text-gray-500 text-center py-8">No responses yet. Quiz not taken.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b-2 border-indigo-200">
-                    <th className="text-left p-3 font-semibold text-gray-700">Name</th>
-                    <th className="text-left p-3 font-semibold text-gray-700">Phone</th>
-                    <th className="text-left p-3 font-semibold text-gray-700">City</th>
-                    <th className="text-center p-3 font-semibold text-gray-700">Score</th>
-                    <th className="text-left p-3 font-semibold text-gray-700">Prize</th>
-                    <th className="text-left p-3 font-semibold text-gray-700">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...submissions].reverse().slice(0, 10).map((sub, i) => (
-                    <tr key={i} className="border-b border-gray-200 hover:bg-indigo-50 transition">
-                      <td className="p-3 text-gray-800">{sub.name}</td>
-                      <td className="p-3 text-gray-800">{sub.phone}</td>
-                      <td className="p-3 text-gray-800">{sub.city}</td>
-                      <td className="p-3 text-center">
-                        <span className={`px-3 py-1 rounded-full font-bold text-xs ${
-                          sub.score >= 8
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {sub.score}/10
-                        </span>
-                      </td>
-                      <td className="p-3 text-gray-800">{sub.prize}</td>
-                      <td className="p-3 text-gray-600 text-xs">{new Date(sub.timestamp).toLocaleDateString()}</td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-indigo-200">
+                      <th className="text-left p-3 font-semibold text-gray-700">Name</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Phone</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">City</th>
+                      <th className="text-center p-3 font-semibold text-gray-700">Score</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Prize</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paginatedSubmissions.map((sub, i) => (
+                      <tr key={i} className="border-b border-gray-200 hover:bg-indigo-50 transition">
+                        <td className="p-3 text-gray-800">{sub.name}</td>
+                        <td className="p-3 text-gray-800">{sub.phone}</td>
+                        <td className="p-3 text-gray-800">{sub.city}</td>
+                        <td className="p-3 text-center">
+                          <span className={`px-3 py-1 rounded-full font-bold text-xs ${
+                            sub.score >= 8
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {sub.score}/10
+                          </span>
+                        </td>
+                        <td className="p-3 text-gray-800 text-sm">{sub.prize}</td>
+                        <td className="p-3 text-gray-600 text-xs">{new Date(sub.timestamp).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700"
+                  >
+                    ← Previous
+                  </button>
+                  <div className="text-center">
+                    <p className="text-gray-700 font-semibold">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, submissions.length)} of {submissions.length}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
-          <p className="mb-3">Data stored locally • Auto-updates when quiz is taken</p>
+          <p className="mb-3">Live Firebase data • Auto-updates when quiz is taken • {submissions.length} total responses</p>
           <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Back to Quiz</a>
         </div>
       </div>
