@@ -54,13 +54,61 @@ export default function Dashboard() {
     return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
   }, [submissions]);
 
+  const downloadCSV = () => {
+    if (submissions.length === 0) {
+      alert('No data to download');
+      return;
+    }
+
+    // CSV headers
+    const headers = ['Name', 'Phone', 'City', 'Score', 'Prize', 'Timestamp'];
+
+    // CSV rows
+    const rows = submissions.map(s => [
+      `"${s.name}"`,
+      `"${s.phone}"`,
+      `"${s.city}"`,
+      s.score,
+      `"${s.prize}"`,
+      new Date(s.timestamp).toLocaleString()
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `quiz_responses_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-5xl font-bold text-indigo-900 mb-2">📊 Quiz Dashboard</h1>
-          <p className="text-indigo-700 text-lg">Real-time participant tracking</p>
+        <div className="mb-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-5xl font-bold text-indigo-900 mb-2">📊 Quiz Dashboard</h1>
+            <p className="text-indigo-700 text-lg">Real-time participant tracking</p>
+          </div>
+          <button
+            onClick={downloadCSV}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition flex items-center gap-2"
+          >
+            <span>📥</span>
+            <span>Download CSV</span>
+          </button>
         </div>
 
         {/* Stats Grid */}
