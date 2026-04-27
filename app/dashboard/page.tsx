@@ -22,34 +22,32 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchWinners = async () => {
       try {
-        // Fetch from API first
-        const response = await fetch('/api/winners');
-        if (response.ok) {
-          const data = await response.json();
-          setWinners(data);
+        // Load from localStorage (primary source)
+        const stored = localStorage.getItem('habitBuiltWinners');
+        if (stored) {
+          setWinners(JSON.parse(stored));
         } else {
-          // Fallback to localStorage
-          const stored = localStorage.getItem('habitBuiltWinners');
-          if (stored) {
-            setWinners(JSON.parse(stored));
+          // Try API as fallback
+          const response = await fetch('/api/winners');
+          if (response.ok) {
+            const data = await response.json();
+            setWinners(data);
           }
         }
       } catch (error) {
         console.error('Error fetching winners:', error);
-        // Fallback to localStorage
-        const stored = localStorage.getItem('habitBuiltWinners');
-        if (stored) {
-          setWinners(JSON.parse(stored));
-        }
       }
       setLoading(false);
     };
 
     fetchWinners();
+    // Refresh data every 2 seconds to show live updates
+    const interval = setInterval(fetchWinners, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const totalParticipants = winners.length;
-  const totalWinners = winners.filter((w) => w.score >= 13).length;
+  const totalWinners = winners.filter((w) => w.score >= 8).length;
 
   const prizeStats = winners.reduce(
     (acc, w) => {
@@ -106,7 +104,7 @@ export default function Dashboard() {
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="text-3xl font-bold text-green-600">{totalWinners}</div>
-            <div className="text-gray-700 font-semibold">Winners (13+/15)</div>
+            <div className="text-gray-700 font-semibold">Winners (8+/10)</div>
           </div>
           <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="text-3xl font-bold text-purple-600">
