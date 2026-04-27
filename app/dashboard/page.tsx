@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { collection, query, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Submission {
   name: string;
@@ -19,19 +21,40 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Load from localStorage immediately - FAST
+  // Fetch from Firebase on load
   useEffect(() => {
-    const stored = localStorage.getItem('habitBuiltWinners');
-    if (stored) {
+    const fetchData = async () => {
       try {
-        const data = JSON.parse(stored);
-        setSubmissions(data);
-        console.log(`✅ Loaded ${data.length} submissions from localStorage`);
-      } catch (e) {
-        console.error('Failed to parse localStorage:', e);
+        // First check localStorage
+        const cached = localStorage.getItem('habitBuiltWinners');
+        if (cached) {
+          setSubmissions(JSON.parse(cached));
+        }
+
+        // Then fetch from Firebase (newer data)
+        const q = query(collection(db, 'winners'));
+        const snapshot = await getDocs(q);
+        const firebaseData: Submission[] = [];
+
+        snapshot.forEach(doc => {
+          firebaseData.push(doc.data() as Submission);
+        });
+
+        if (firebaseData.length > 0) {
+          setSubmissions(firebaseData);
+          // Update localStorage cache
+          localStorage.setItem('habitBuiltWinners', JSON.stringify(firebaseData));
+          console.log(`✅ Loaded ${firebaseData.length} submissions from Firebase`);
+        }
+      } catch (error) {
+        console.error('Firebase error:', error);
+        // Keep using cached localStorage data
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+
+    fetchData();
   }, []);
 
   // Memoized calculations
@@ -114,7 +137,8 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <p className="text-2xl font-bold text-indigo-900">Loading dashboard...</p>
+          <p className="text-2xl font-bold text-indigo-900">Loading all submissions...</p>
+          <p className="text-indigo-700 mt-2">From Firebase database</p>
         </div>
       </div>
     );
@@ -130,7 +154,7 @@ export default function Dashboard() {
             <p className="text-indigo-700 text-lg">
               {submissions.length === 0
                 ? 'No responses yet'
-                : `${submissions.length} participants`}
+                : `${submissions.length} participants • Shared with all users 🌍`}
             </p>
           </div>
           <button
@@ -147,7 +171,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-md p-12 text-center">
             <div className="text-6xl mb-4">📭</div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">No Data Yet</h2>
-            <p className="text-gray-600 mb-6">Quiz responses will appear here once participants take the quiz.</p>
+            <p className="text-gray-600 mb-6">Quiz responses from all users will appear here once participants take the quiz.</p>
             <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Go to Quiz</a>
           </div>
         ) : (
@@ -336,7 +360,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
-          <p className="mb-3">Data from localStorage • Persists across devices</p>
+          <p className="mb-3">🌍 Shared Firebase data • All users see same data • Auto-synced</p>
           <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Back to Quiz</a>
         </div>
       </div>
