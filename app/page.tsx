@@ -406,8 +406,10 @@ export default function Home() {
                 >
                   <div className="relative">
                     {prizes.map((prize, idx) => {
-                      const x = 0;
-                      const y = 0;
+                      const angle = (idx * 90 + 45) * (Math.PI / 180);
+                      const radius = 80;
+                      const x = 150 + radius * Math.cos(angle);
+                      const y = 150 + radius * Math.sin(angle);
                       return (
                         <div
                           key={idx}
@@ -424,7 +426,7 @@ export default function Home() {
                       );
                     })}
                     {/* Center pointer */}
-                    <div className="text-5xl drop-shadow-lg">🎯</div>
+                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl drop-shadow-lg">🎯</div>
                   </div>
                 </div>
               </div>
