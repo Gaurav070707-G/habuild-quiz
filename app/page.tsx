@@ -344,7 +344,7 @@ export default function Home() {
               Oops! Better Luck Next Time
             </h2>
             <p className="text-2xl font-semibold text-purple-600 mb-6">
-              You scored {score}/15
+              You scored {score}/{questions.length}
             </p>
             <div className="bg-gradient-to-r from-blue-100 to-green-100 rounded-2xl p-8 mb-8">
               <p className="text-lg text-gray-800 mb-2">💡 Wellness Tip:</p>
@@ -379,7 +379,7 @@ export default function Home() {
               Congratulations! You're a True Yogi!
             </h2>
             <p className="text-xl text-purple-600 font-semibold mb-8">
-              You scored {score}/15 — Amazing! 🙌
+              You scored {score}/{questions.length} — Amazing! 🙌
             </p>
 
             {/* Prize Wheel */}
@@ -404,19 +404,19 @@ export default function Home() {
                     boxShadow: '0 15px 50px rgba(0,0,0,0.3)',
                   }}
                 >
-                  <div className="relative">
+                  <div className="absolute inset-0 flex items-center justify-center">
                     {prizes.map((prize, idx) => {
                       const angle = (idx * 90 + 45) * (Math.PI / 180);
-                      const radius = 80;
-                      const x = 150 + radius * Math.cos(angle);
-                      const y = 150 + radius * Math.sin(angle);
+                      const radius = 70;
+                      const x = radius * Math.cos(angle);
+                      const y = radius * Math.sin(angle);
                       return (
                         <div
                           key={idx}
                           style={{
                             position: 'absolute',
-                            left: `${x}px`,
-                            top: `${y}px`,
+                            left: `calc(50% + ${x}px)`,
+                            top: `calc(50% + ${y}px)`,
                             transform: 'translate(-50%, -50%)',
                           }}
                           className="text-5xl drop-shadow-lg"
