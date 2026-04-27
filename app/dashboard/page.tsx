@@ -31,14 +31,21 @@ export default function Dashboard() {
       }
     }
 
-    // Try Firebase in background (non-blocking)
+    // Try Firebase in background with timeout (3 seconds max)
     let unsubscribe: (() => void) | null = null;
+    let firebaseTimeout: NodeJS.Timeout | null = null;
 
     try {
+      firebaseTimeout = setTimeout(() => {
+        console.log('Firebase taking too long, using localStorage');
+        if (unsubscribe) unsubscribe();
+      }, 3000);
+
       const q = query(collection(db, 'winners'));
       unsubscribe = onSnapshot(
         q,
         (snapshot) => {
+          if (firebaseTimeout) clearTimeout(firebaseTimeout);
           const winnersData: Winner[] = [];
           snapshot.forEach((doc) => {
             winnersData.push(doc.data() as Winner);
@@ -46,18 +53,21 @@ export default function Dashboard() {
           // Only update if we got different data
           if (winnersData.length > 0) {
             setWinners(winnersData);
+            console.log('Firebase loaded:', winnersData.length, 'records');
           }
         },
         (error) => {
-          // Firebase failed - just log it, use localStorage
-          console.error('Firebase error:', error);
+          if (firebaseTimeout) clearTimeout(firebaseTimeout);
+          console.error('Firebase error, using localStorage:', error);
         }
       );
     } catch (error) {
+      if (firebaseTimeout) clearTimeout(firebaseTimeout);
       console.error('Firebase setup error:', error);
     }
 
     return () => {
+      if (firebaseTimeout) clearTimeout(firebaseTimeout);
       if (unsubscribe) {
         unsubscribe();
       }
