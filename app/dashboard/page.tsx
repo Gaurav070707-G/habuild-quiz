@@ -22,23 +22,51 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState<string>('');
 
   useEffect(() => {
-    setLoading(true);
+    // Load from localStorage immediately
+    const stored = localStorage.getItem('habitBuiltWinners');
+    if (stored) {
+      setWinners(JSON.parse(stored));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    let firebaseTimeout: NodeJS.Timeout | null = null;
 
     try {
+      // Set timeout for Firebase response (5 seconds)
+      firebaseTimeout = setTimeout(() => {
+        console.warn('Firebase took too long, using localStorage');
+      }, 5000);
+
       // Real-time listener from Firebase
       const q = query(collection(db, 'winners'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const winnersData: Winner[] = [];
-        snapshot.forEach((doc) => {
-          winnersData.push(doc.data() as Winner);
-        });
-        setWinners(winnersData);
-        setLoading(false);
-      });
-
-      return unsubscribe;
+      unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (firebaseTimeout) clearTimeout(firebaseTimeout);
+          const winnersData: Winner[] = [];
+          snapshot.forEach((doc) => {
+            winnersData.push(doc.data() as Winner);
+          });
+          setWinners(winnersData);
+          setLoading(false);
+        },
+        (error) => {
+          // Firebase error callback - fallback to localStorage
+          if (firebaseTimeout) clearTimeout(firebaseTimeout);
+          console.error('Firebase error, using localStorage:', error);
+          const stored = localStorage.getItem('habitBuiltWinners');
+          if (stored) {
+            setWinners(JSON.parse(stored));
+          }
+          setLoading(false);
+        }
+      );
     } catch (error) {
-      console.error('Error fetching winners:', error);
+      if (firebaseTimeout) clearTimeout(firebaseTimeout);
+      console.error('Error setting up Firebase listener:', error);
       // Fallback to localStorage
       const stored = localStorage.getItem('habitBuiltWinners');
       if (stored) {
@@ -46,6 +74,13 @@ export default function Dashboard() {
       }
       setLoading(false);
     }
+
+    return () => {
+      if (firebaseTimeout) clearTimeout(firebaseTimeout);
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const totalParticipants = winners.length;
@@ -240,12 +275,12 @@ export default function Dashboard() {
                             <td className="p-3">
                               <span
                                 className={`px-3 py-1 rounded-full font-semibold text-xs ${
-                                  winner.score >= 13
+                                  winner.score >= 8
                                     ? 'bg-green-100 text-green-800'
                                     : 'bg-red-100 text-red-800'
                                 }`}
                               >
-                                {winner.score}/15
+                                {winner.score}/10
                               </span>
                             </td>
                             <td className="p-3 text-gray-800">{winner.prize}</td>
@@ -304,12 +339,12 @@ export default function Dashboard() {
                                 <td className="p-3">
                                   <span
                                     className={`px-3 py-1 rounded-full font-semibold text-xs ${
-                                      winner.score >= 13
+                                      winner.score >= 8
                                         ? 'bg-green-100 text-green-800'
                                         : 'bg-red-100 text-red-800'
                                     }`}
                                   >
-                                    {winner.score}/15
+                                    {winner.score}/10
                                   </span>
                                 </td>
                                 <td className="p-3 text-gray-800">{winner.prize}</td>

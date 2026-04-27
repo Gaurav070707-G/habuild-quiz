@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Habuild Yoga Quiz - Win Prizes 🧘",
-  description: "Take the Habuild yoga challenge and win amazing prizes! Score 13/15 to unlock the prize wheel.",
+  description: "Take the Habuild yoga challenge and win amazing prizes! Score 8/10 to unlock the prize wheel.",
 };
 
 export default function RootLayout({
