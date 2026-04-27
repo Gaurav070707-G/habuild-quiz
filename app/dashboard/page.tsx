@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, QuerySnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 interface Winner {
   name: string;
@@ -26,9 +24,8 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout | null = null;
-    let unsubscribe: (() => void) | null = null;
 
-    const loadData = () => {
+    const loadData = async () => {
       // Load cached data immediately
       const cached = localStorage.getItem('habitBuiltWinners');
       if (cached) {
@@ -36,85 +33,77 @@ export default function Dashboard() {
           const data = JSON.parse(cached);
           setWinners(data);
           setLoading(false);
-          console.log('Loaded from cache:', data.length, 'winners');
+          console.log('Dashboard: Loaded from cache:', data.length, 'winners');
         } catch (e) {
-          console.error('Failed to parse cached data:', e);
+          console.error('Dashboard: Failed to parse cached data:', e);
           setLoading(true);
         }
       } else {
         setLoading(true);
       }
 
-      // Set timeout to show error if Firebase is too slow
+      // Set timeout to show error if API is too slow
       timeoutId = setTimeout(() => {
-        if (isMounted) {
+        if (isMounted && loading) {
           const cached = localStorage.getItem('habitBuiltWinners');
           if (!cached) {
-            console.warn('Firebase timeout - no cached data available');
-            setError('Taking longer than expected. Please try refreshing.');
+            console.warn('Dashboard: API timeout - no cached data available');
+            setError('Taking longer than expected. Showing cached data or try refreshing.');
             setLoading(false);
           }
         }
-      }, 4000);
+      }, 3000);
 
       try {
-        // Fetch from Firebase with real-time listener
-        const q = query(collection(db, 'winners'));
-        unsubscribe = onSnapshot(
-          q,
-          (snapshot) => {
-            if (!isMounted) return;
+        // Fetch from API endpoint (which reads from Firebase)
+        console.log('Dashboard: Fetching winners from API...');
+        const response = await fetch('/api/winners', {
+          cache: 'no-store',
+        });
 
-            const winnersData: Winner[] = [];
-            snapshot.forEach((doc: any) => {
-              winnersData.push(doc.data() as Winner);
-            });
+        if (!isMounted) return;
 
-            console.log('Loaded from Firebase:', winnersData.length, 'winners');
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
 
-            if (timeoutId) clearTimeout(timeoutId);
-            setWinners(winnersData);
-            setLoading(false);
-            setError('');
+        const winnersData: Winner[] = await response.json();
+        console.log('Dashboard: Loaded from API:', winnersData.length, 'winners');
 
-            // Cache to localStorage
-            try {
-              localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
-            } catch (e) {
-              console.warn('Failed to cache data:', e);
-            }
-          },
-          (error) => {
-            if (!isMounted) return;
+        if (timeoutId) clearTimeout(timeoutId);
+        setWinners(winnersData);
+        setLoading(false);
+        setError('');
 
-            console.error('Firebase listener error:', error);
-
-            if (timeoutId) clearTimeout(timeoutId);
-
-            const cached = localStorage.getItem('habitBuiltWinners');
-            if (cached) {
-              try {
-                const data = JSON.parse(cached);
-                setWinners(data);
-                setError('Using cached data (offline)');
-                setLoading(false);
-              } catch (e) {
-                setError('Failed to load data');
-                setLoading(false);
-              }
-            } else {
-              setError('Unable to connect to database');
-              setLoading(false);
-            }
-          }
-        );
+        // Cache to localStorage
+        try {
+          localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
+          console.log('Dashboard: Cached', winnersData.length, 'winners');
+        } catch (e) {
+          console.warn('Dashboard: Failed to cache data:', e);
+        }
       } catch (error) {
         if (!isMounted) return;
 
-        console.error('Error setting up Firebase listener:', error);
+        console.error('Dashboard: Error fetching from API:', error);
+
         if (timeoutId) clearTimeout(timeoutId);
-        setError('Failed to initialize');
-        setLoading(false);
+
+        const cached = localStorage.getItem('habitBuiltWinners');
+        if (cached) {
+          try {
+            const data = JSON.parse(cached);
+            setWinners(data);
+            setError('Using cached data (API unavailable)');
+            setLoading(false);
+          } catch (e) {
+            setError('Failed to load data');
+            setLoading(false);
+          }
+        } else {
+          setError('Unable to load data. Please try refreshing.');
+          setLoading(false);
+        }
       }
     };
 
@@ -123,9 +112,8 @@ export default function Dashboard() {
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
-      if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [loading]);
 
   const totalParticipants = useMemo(() => winners.length, [winners]);
   const totalWinners = useMemo(() => winners.filter((w) => w.score >= 8).length, [winners]);
