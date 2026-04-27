@@ -176,6 +176,7 @@ export default function Dashboard() {
                       <thead>
                         <tr className="border-b-2 border-gray-300">
                           <th className="p-3 font-semibold text-gray-700">Name</th>
+                          <th className="p-3 font-semibold text-gray-700">Phone</th>
                           <th className="p-3 font-semibold text-gray-700">City</th>
                           <th className="p-3 font-semibold text-gray-700">Score</th>
                           <th className="p-3 font-semibold text-gray-700">Prize</th>
@@ -186,16 +187,17 @@ export default function Dashboard() {
                         {[...winners].reverse().slice(0, 20).map((winner, idx) => (
                           <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                             <td className="p-3 text-gray-800">{winner.name}</td>
+                            <td className="p-3 text-gray-800">{winner.phone}</td>
                             <td className="p-3 text-gray-800">{winner.city}</td>
                             <td className="p-3">
                               <span
                                 className={`px-3 py-1 rounded-full font-semibold text-xs ${
-                                  winner.score >= 13
+                                  winner.score >= 8
                                     ? 'bg-green-100 text-green-800'
                                     : 'bg-red-100 text-red-800'
                                 }`}
                               >
-                                {winner.score}/15
+                                {winner.score}/10
                               </span>
                             </td>
                             <td className="p-3 text-gray-800">{winner.prize}</td>
