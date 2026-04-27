@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, QuerySnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 interface Winner {
@@ -24,64 +24,72 @@ export default function Dashboard() {
   const [top100Page, setTop100Page] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    setError('');
-    let unsubscribe: (() => void) | null = null;
-    let timeoutId: NodeJS.Timeout | null = null;
     let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
 
     const loadData = async () => {
+      // Load cached data immediately
+      const cached = localStorage.getItem('habitBuiltWinners');
+      if (cached) {
+        try {
+          setWinners(JSON.parse(cached));
+          setLoading(false);
+        } catch (e) {
+          console.error('Failed to parse cached data:', e);
+        }
+      }
+
+      // Fetch fresh data from Firebase with 3-second timeout
       try {
-        // 5-second timeout for Firebase connection
         timeoutId = setTimeout(() => {
-          if (isMounted && loading) {
-            setError('Firebase connection timed out. Showing cached data.');
-            const stored = localStorage.getItem('habitBuiltWinners');
-            if (stored) {
-              setWinners(JSON.parse(stored));
+          if (isMounted) {
+            if (!cached) {
+              setError('Firebase is taking too long. Please try again later.');
+              setLoading(false);
             }
-            setLoading(false);
-            if (unsubscribe) unsubscribe();
           }
-        }, 5000);
+        }, 3000);
 
-        // Real-time listener from Firebase
         const q = query(collection(db, 'winners'));
-        unsubscribe = onSnapshot(q, (snapshot) => {
-          if (!isMounted) return;
-
-          const winnersData: Winner[] = [];
-          snapshot.forEach((doc) => {
-            winnersData.push(doc.data() as Winner);
-          });
-
-          if (timeoutId) clearTimeout(timeoutId);
-          setWinners(winnersData);
-          setLoading(false);
-          setError('');
-
-          // Cache to localStorage
-          localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
-        }, (error) => {
-          if (!isMounted) return;
-
-          if (timeoutId) clearTimeout(timeoutId);
-          console.error('Firebase error:', error);
-          setError('Failed to connect to database');
-
-          const stored = localStorage.getItem('habitBuiltWinners');
-          if (stored) {
-            setWinners(JSON.parse(stored));
-          }
-          setLoading(false);
+        const snapshot = await new Promise<QuerySnapshot>((resolve, reject) => {
+          const unsubscribe = onSnapshot(
+            q,
+            (snap) => {
+              unsubscribe();
+              resolve(snap);
+            },
+            reject
+          );
         });
+
+        if (!isMounted) return;
+
+        const winnersData: Winner[] = [];
+        snapshot.forEach((doc: any) => {
+          winnersData.push(doc.data() as Winner);
+        });
+
+        if (timeoutId) clearTimeout(timeoutId);
+        setWinners(winnersData);
+        setLoading(false);
+        setError('');
+
+        // Cache to localStorage
+        localStorage.setItem('habitBuiltWinners', JSON.stringify(winnersData));
       } catch (error) {
         if (!isMounted) return;
 
         if (timeoutId) clearTimeout(timeoutId);
-        console.error('Error initializing dashboard:', error);
-        setError('Failed to initialize dashboard');
-        setLoading(false);
+        console.error('Firebase error:', error);
+
+        const cached = localStorage.getItem('habitBuiltWinners');
+        if (cached) {
+          setError('Using cached data - offline mode');
+          setLoading(false);
+        } else {
+          setError('Failed to load data. Please refresh the page.');
+          setLoading(false);
+        }
       }
     };
 
@@ -90,7 +98,6 @@ export default function Dashboard() {
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
-      if (unsubscribe) unsubscribe();
     };
   }, []);
 
