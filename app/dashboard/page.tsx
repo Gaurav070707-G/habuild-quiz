@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { collection, query, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 interface Submission {
   name: string;
@@ -21,30 +19,19 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch from Firebase
+  // Load from localStorage immediately - FAST
   useEffect(() => {
-    const fetchData = async () => {
+    const stored = localStorage.getItem('habitBuiltWinners');
+    if (stored) {
       try {
-        const q = query(collection(db, 'winners'));
-        const snapshot = await getDocs(q);
-        const data: Submission[] = [];
-        snapshot.forEach(doc => {
-          data.push(doc.data() as Submission);
-        });
+        const data = JSON.parse(stored);
         setSubmissions(data);
-        console.log(`Loaded ${data.length} submissions from Firebase`);
-      } catch (error) {
-        console.error('Firebase error:', error);
-        // Fallback to localStorage
-        const stored = localStorage.getItem('habitBuiltWinners');
-        if (stored) {
-          setSubmissions(JSON.parse(stored));
-        }
-      } finally {
-        setLoading(false);
+        console.log(`✅ Loaded ${data.length} submissions from localStorage`);
+      } catch (e) {
+        console.error('Failed to parse localStorage:', e);
       }
-    };
-    fetchData();
+    }
+    setLoading(false);
   }, []);
 
   // Memoized calculations
@@ -127,8 +114,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <p className="text-2xl font-bold text-indigo-900">Loading {submissions.length} submissions...</p>
-          <p className="text-indigo-700 mt-2">Fetching data from Firebase</p>
+          <p className="text-2xl font-bold text-indigo-900">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -141,145 +127,147 @@ export default function Dashboard() {
         <div className="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-5xl font-bold text-indigo-900 mb-2">📊 Quiz Dashboard</h1>
-            <p className="text-indigo-700 text-lg">Live data from {submissions.length} participants</p>
+            <p className="text-indigo-700 text-lg">
+              {submissions.length === 0
+                ? 'No responses yet'
+                : `${submissions.length} participants`}
+            </p>
           </div>
           <button
             onClick={downloadCSV}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition flex items-center gap-2 whitespace-nowrap"
+            disabled={submissions.length === 0}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg shadow-lg transition flex items-center gap-2 whitespace-nowrap"
           >
             <span>📥</span>
             <span>Download {submissions.length} CSV</span>
           </button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
-            <div className="text-4xl font-bold text-blue-600">{stats.total}</div>
-            <div className="text-gray-600 mt-2">Total Responses</div>
+        {submissions.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-md p-12 text-center">
+            <div className="text-6xl mb-4">📭</div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">No Data Yet</h2>
+            <p className="text-gray-600 mb-6">Quiz responses will appear here once participants take the quiz.</p>
+            <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Go to Quiz</a>
           </div>
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-            <div className="text-4xl font-bold text-green-600">{stats.winners}</div>
-            <div className="text-gray-600 mt-2">Winners (8+)</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-            <div className="text-4xl font-bold text-purple-600">{stats.winRate}%</div>
-            <div className="text-gray-600 mt-2">Win Rate</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
-            <div className="text-4xl font-bold text-orange-600">{cities.length}</div>
-            <div className="text-gray-600 mt-2">Cities</div>
-          </div>
-        </div>
-
-        {/* Prize Breakdown */}
-        {prizeBreakdown.length > 0 && (
-          <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🎁 Prize Distribution</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {prizeBreakdown.map(([prize, count]) => (
-                <div key={prize} className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
-                  <div className="text-3xl font-bold text-indigo-600">{count}</div>
-                  <div className="text-sm text-gray-700 mt-2 line-clamp-2">{prize}</div>
-                </div>
-              ))}
+        ) : (
+          <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
+                <div className="text-4xl font-bold text-blue-600">{stats.total}</div>
+                <div className="text-gray-600 mt-2">Total Responses</div>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
+                <div className="text-4xl font-bold text-green-600">{stats.winners}</div>
+                <div className="text-gray-600 mt-2">Winners (8+)</div>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+                <div className="text-4xl font-bold text-purple-600">{stats.winRate}%</div>
+                <div className="text-gray-600 mt-2">Win Rate</div>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500">
+                <div className="text-4xl font-bold text-orange-600">{cities.length}</div>
+                <div className="text-gray-600 mt-2">Cities</div>
+              </div>
             </div>
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Top Scorers */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Top 20 Scorers</h2>
-            {topScores.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No responses yet</p>
-            ) : (
-              <div className="space-y-3">
-                {topScores.map((sub, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800">{i + 1}. {sub.name}</div>
-                      <div className="text-sm text-gray-600">{sub.city}</div>
+            {/* Prize Breakdown */}
+            {prizeBreakdown.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">🎁 Prize Distribution</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {prizeBreakdown.map(([prize, count]) => (
+                    <div key={prize} className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-4 border border-indigo-200">
+                      <div className="text-3xl font-bold text-indigo-600">{count}</div>
+                      <div className="text-sm text-gray-700 mt-2 line-clamp-2">{prize}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-indigo-600">{sub.score}</div>
-                      <div className="text-xs text-gray-600">/ 10</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Top Scorers */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">🏆 Top 20 Scorers</h2>
+                <div className="space-y-3">
+                  {topScores.map((sub, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-800">{i + 1}. {sub.name}</div>
+                        <div className="text-sm text-gray-600">{sub.city}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-indigo-600">{sub.score}</div>
+                        <div className="text-xs text-gray-600">/ 10</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* City Wise */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">🌍 City Wise Top</h2>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full px-4 py-2 border-2 border-indigo-300 rounded-lg mb-4 focus:outline-none focus:border-indigo-600 font-medium"
+                >
+                  <option value="">Select a city...</option>
+                  {cities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+
+                {selectedCity ? (
+                  <div className="space-y-3">
+                    {cityData.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No data for this city</p>
+                    ) : (
+                      cityData.map((sub, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-800">#{i + 1} {sub.name}</div>
+                            <div className="text-xs text-gray-600">{sub.phone}</div>
+                          </div>
+                          <div className="font-bold text-green-600">{sub.score}/10</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-12">Choose a city to see top scores</p>
+                )}
+              </div>
+            </div>
+
+            {/* Phone Directory */}
+            <div className="bg-white rounded-xl shadow-md p-6 mt-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">📱 Phone Directory ({submissions.length})</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...submissions].map((sub, i) => (
+                  <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
+                    <div className="font-semibold text-gray-800">{sub.name}</div>
+                    <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📞</span>
+                      <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
+                        {sub.phone}
+                      </a>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-600">
+                      Score: <span className="font-bold text-indigo-600">{sub.score}/10</span>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* City Wise */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">🌍 City Wise Top</h2>
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-indigo-300 rounded-lg mb-4 focus:outline-none focus:border-indigo-600 font-medium"
-            >
-              <option value="">Select a city...</option>
-              {cities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-
-            {selectedCity ? (
-              <div className="space-y-3">
-                {cityData.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No data for this city</p>
-                ) : (
-                  cityData.map((sub, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-800">#{i + 1} {sub.name}</div>
-                        <div className="text-xs text-gray-600">{sub.phone}</div>
-                      </div>
-                      <div className="font-bold text-green-600">{sub.score}/10</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-12">Choose a city to see top scores</p>
-            )}
-          </div>
-        </div>
-
-        {/* Phone Directory */}
-        <div className="bg-white rounded-xl shadow-md p-6 mt-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">📱 Phone Directory ({submissions.length})</h2>
-          {submissions.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No responses yet</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...submissions].map((sub, i) => (
-                <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
-                  <div className="font-semibold text-gray-800">{sub.name}</div>
-                  <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">📞</span>
-                    <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
-                      {sub.phone}
-                    </a>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-600">
-                    Score: <span className="font-bold text-indigo-600">{sub.score}/10</span>
-                  </div>
-                </div>
-              ))}
             </div>
-          )}
-        </div>
 
-        {/* Recent Responses with Pagination */}
-        <div className="bg-white rounded-xl shadow-md p-6 mt-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 All Responses (Page {currentPage}/{totalPages})</h2>
-          {submissions.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No responses yet. Quiz not taken.</p>
-          ) : (
-            <>
+            {/* Recent Responses with Pagination */}
+            <div className="bg-white rounded-xl shadow-md p-6 mt-8">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 All Responses (Page {currentPage}/{totalPages})</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -342,13 +330,13 @@ export default function Dashboard() {
                   </button>
                 </div>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
-          <p className="mb-3">Live Firebase data • Auto-updates when quiz is taken • {submissions.length} total responses</p>
+          <p className="mb-3">Data from localStorage • Persists across devices</p>
           <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Back to Quiz</a>
         </div>
       </div>
