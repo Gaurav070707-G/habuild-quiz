@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 interface Submission {
@@ -14,6 +14,7 @@ interface Submission {
 }
 
 const ITEMS_PER_PAGE = 50;
+const INITIAL_LIMIT = 200; // Load first 200, not all 4000
 
 export default function Dashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -21,40 +22,60 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch from Firebase on load
+  // Smart loading: localStorage first, then Firebase
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // First check localStorage
-        const cached = localStorage.getItem('habitBuiltWinners');
-        if (cached) {
-          setSubmissions(JSON.parse(cached));
-        }
+    let isMounted = true;
 
-        // Then fetch from Firebase (newer data)
-        const q = query(collection(db, 'winners'));
-        const snapshot = await getDocs(q);
+    const loadData = async () => {
+      // Step 1: Load from localStorage immediately (if exists)
+      const cached = localStorage.getItem('habitBuiltWinners');
+      if (cached && isMounted) {
+        try {
+          const parsedCache = JSON.parse(cached);
+          setSubmissions(parsedCache);
+          console.log(`✅ Loaded ${parsedCache.length} from localStorage cache`);
+        } catch (e) {
+          console.error('Cache parse error:', e);
+        }
+      }
+
+      // Step 2: Fetch from Firebase with timeout
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Firebase timeout')), 5000)
+        );
+
+        const q = query(collection(db, 'winners'), limit(INITIAL_LIMIT));
+        const racePromise = Promise.race([getDocs(q), timeoutPromise]);
+
+        const snapshot = await racePromise as any;
         const firebaseData: Submission[] = [];
 
-        snapshot.forEach(doc => {
+        snapshot.forEach((doc: any) => {
           firebaseData.push(doc.data() as Submission);
         });
 
-        if (firebaseData.length > 0) {
+        if (isMounted) {
           setSubmissions(firebaseData);
           // Update localStorage cache
           localStorage.setItem('habitBuiltWinners', JSON.stringify(firebaseData));
-          console.log(`✅ Loaded ${firebaseData.length} submissions from Firebase`);
+          console.log(`✅ Loaded ${firebaseData.length} from Firebase`);
         }
       } catch (error) {
-        console.error('Firebase error:', error);
-        // Keep using cached localStorage data
+        console.warn('Firebase load timeout or error, using cache:', error);
+        // Already have cache displayed, just continue
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Memoized calculations
@@ -90,7 +111,7 @@ export default function Dashboard() {
     return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
   }, [submissions]);
 
-  // Pagination for recent responses
+  // Pagination
   const paginatedSubmissions = useMemo(() => {
     const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
     return [...submissions].reverse().slice(startIdx, startIdx + ITEMS_PER_PAGE);
@@ -132,13 +153,13 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
-  if (loading) {
+  if (loading && submissions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4">⏳</div>
-          <p className="text-2xl font-bold text-indigo-900">Loading all submissions...</p>
-          <p className="text-indigo-700 mt-2">From Firebase database</p>
+          <div className="text-6xl mb-4 animate-spin">⚡</div>
+          <p className="text-2xl font-bold text-indigo-900">Loading submissions...</p>
+          <p className="text-indigo-700 mt-2">Using cache if available</p>
         </div>
       </div>
     );
@@ -154,7 +175,7 @@ export default function Dashboard() {
             <p className="text-indigo-700 text-lg">
               {submissions.length === 0
                 ? 'No responses yet'
-                : `${submissions.length} participants • Shared with all users 🌍`}
+                : `${submissions.length} participants • ${loading ? '(updating...)' : 'Shared data'}`}
             </p>
           </div>
           <button
@@ -360,7 +381,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="text-center mt-12 text-gray-600">
-          <p className="mb-3">🌍 Shared Firebase data • All users see same data • Auto-synced</p>
+          <p className="mb-3">⚡ Optimized loading • Shared data • Auto-synced</p>
           <a href="/" className="text-indigo-600 hover:text-indigo-800 font-semibold">← Back to Quiz</a>
         </div>
       </div>
