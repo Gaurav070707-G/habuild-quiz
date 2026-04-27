@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 const questions = [
   {
@@ -123,14 +125,10 @@ export default function Home() {
     };
 
     try {
-      // Save to backend API
-      await fetch('/api/winners', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(winner),
-      });
+      // Save to Firebase Firestore
+      await addDoc(collection(db, 'winners'), winner);
     } catch (error) {
-      console.error('Failed to save winner:', error);
+      console.error('Failed to save winner to Firebase:', error);
     }
 
     // Also save to localStorage for instant display

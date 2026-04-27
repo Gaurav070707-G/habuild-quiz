@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface Winner {
   name: string;
@@ -20,30 +22,30 @@ export default function Dashboard() {
   const [selectedCity, setSelectedCity] = useState<string>('');
 
   useEffect(() => {
-    const fetchWinners = async () => {
-      try {
-        // Load from localStorage (primary source)
-        const stored = localStorage.getItem('habitBuiltWinners');
-        if (stored) {
-          setWinners(JSON.parse(stored));
-        } else {
-          // Try API as fallback
-          const response = await fetch('/api/winners');
-          if (response.ok) {
-            const data = await response.json();
-            setWinners(data);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching winners:', error);
+    setLoading(true);
+
+    try {
+      // Real-time listener from Firebase
+      const q = query(collection(db, 'winners'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const winnersData: Winner[] = [];
+        snapshot.forEach((doc) => {
+          winnersData.push(doc.data() as Winner);
+        });
+        setWinners(winnersData);
+        setLoading(false);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Error fetching winners:', error);
+      // Fallback to localStorage
+      const stored = localStorage.getItem('habitBuiltWinners');
+      if (stored) {
+        setWinners(JSON.parse(stored));
       }
       setLoading(false);
-    };
-
-    fetchWinners();
-    // Refresh data every 2 seconds to show live updates
-    const interval = setInterval(fetchWinners, 2000);
-    return () => clearInterval(interval);
+    }
   }, []);
 
   const totalParticipants = winners.length;
