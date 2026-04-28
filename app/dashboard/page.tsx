@@ -48,33 +48,33 @@ export default function Dashboard() {
         console.log('⚠️  No localStorage cache found');
       }
 
-      // Step 2: Fetch from Supabase with timeout
+      // Step 2: Fetch from Supabase
       try {
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Supabase timeout')), 5000)
-        );
-
-        const supabasePromise = supabase
+        console.log('📡 Fetching from Supabase...');
+        const { data: supabaseData, error } = await supabase
           .from('winners')
           .select('*')
           .limit(INITIAL_LIMIT)
           .order('timestamp', { ascending: false });
 
-        const { data: supabaseData, error } = await Promise.race([supabasePromise, timeoutPromise]) as any;
+        if (error) {
+          console.error('❌ Supabase error:', error.message);
+          throw error;
+        }
 
-        if (error) throw error;
-
-        if (isMounted && supabaseData && supabaseData.length > 0) {
-          setSubmissions(supabaseData);
-          // Update localStorage cache
-          localStorage.setItem('habitBuiltWinners', JSON.stringify(supabaseData));
-          console.log(`✅ Loaded ${supabaseData.length} from Supabase`);
-        } else if (isMounted) {
+        if (supabaseData && supabaseData.length > 0) {
+          if (isMounted) {
+            setSubmissions(supabaseData);
+            // Update localStorage cache
+            localStorage.setItem('habitBuiltWinners', JSON.stringify(supabaseData));
+            console.log(`✅ Loaded ${supabaseData.length} from Supabase`);
+          }
+        } else {
           console.log('⚠️  Supabase returned empty or no data');
         }
       } catch (error) {
-        console.warn('❌ Supabase error/timeout, keeping localStorage cache:', error instanceof Error ? error.message : error);
-        // Already have cache displayed, just continue
+        console.error('❌ Supabase fetch failed:', error instanceof Error ? error.message : error);
+        // Keep localStorage cache if Supabase fails
       } finally {
         if (isMounted) {
           setLoading(false);
