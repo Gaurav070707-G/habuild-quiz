@@ -159,7 +159,7 @@ export default function Home() {
           setScreen('fail');
         }
       }
-    }, 500);
+    }, 3500);
   };
 
   const saveWinner = async (finalScore: number, prize: string | null) => {
