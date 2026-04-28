@@ -75,6 +75,29 @@ type Screen = 'welcome' | 'leadCapture' | 'quiz' | 'fail' | 'win' | 'spin' | 'pr
 
 // Rule: Spin wheel cannot stop on water bottle (index 0) - only 1, 2, 3
 
+const COUNTRY_CODES = [
+  { code: '+1', country: 'United States/Canada' },
+  { code: '+44', country: 'United Kingdom' },
+  { code: '+91', country: 'India' },
+  { code: '+86', country: 'China' },
+  { code: '+81', country: 'Japan' },
+  { code: '+82', country: 'South Korea' },
+  { code: '+33', country: 'France' },
+  { code: '+49', country: 'Germany' },
+  { code: '+39', country: 'Italy' },
+  { code: '+34', country: 'Spain' },
+  { code: '+61', country: 'Australia' },
+  { code: '+64', country: 'New Zealand' },
+  { code: '+27', country: 'South Africa' },
+  { code: '+55', country: 'Brazil' },
+  { code: '+1', country: 'Mexico' },
+  { code: '+65', country: 'Singapore' },
+  { code: '+60', country: 'Malaysia' },
+  { code: '+62', country: 'Indonesia' },
+  { code: '+66', country: 'Thailand' },
+  { code: '+84', country: 'Vietnam' },
+];
+
 export default function Home() {
   const [screen, setScreen] = useState<Screen>('welcome');
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -84,6 +107,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
+  const [countryCode, setCountryCode] = useState('');
   const [wonPrizeIndex, setWonPrizeIndex] = useState<number | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
@@ -135,6 +159,7 @@ export default function Home() {
       name,
       city,
       phone,
+      countryCode,
       score: finalScore,
       prize: prize || 'pending',
       timestamp: new Date().toISOString(),
@@ -203,12 +228,13 @@ export default function Home() {
     setName('');
     setCity('');
     setPhone('');
+    setCountryCode('');
     setWonPrizeIndex(null);
     setWheelRotation(0);
   };
 
   const startQuiz = () => {
-    if (name.trim() && phone.trim()) {
+    if (name.trim() && phone.trim() && countryCode) {
       setScreen('quiz');
     }
   };
@@ -281,20 +307,42 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Country Code
+                </label>
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
+                >
+                  <option value="">Select your country code...</option>
+                  {COUNTRY_CODES.map((item) => (
+                    <option key={item.code + item.country} value={item.code}>
+                      {item.code} {item.country}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Phone Number
                 </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
-                  placeholder="Enter your phone number"
-                />
+                <div className="flex gap-2">
+                  <div className="flex items-center px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-800 font-semibold whitespace-nowrap">
+                    {countryCode || '📱'}
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
+                    placeholder="Your phone number"
+                  />
+                </div>
               </div>
             </div>
             <button
               onClick={startQuiz}
-              disabled={!name.trim() || !phone.trim() || !city.trim()}
+              disabled={!name.trim() || !phone.trim() || !countryCode || !city.trim()}
               className="w-full px-8 py-3 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Let's Go! 🎯
