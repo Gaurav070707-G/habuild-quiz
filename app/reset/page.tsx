@@ -3,51 +3,60 @@
 import { useEffect, useState } from 'react';
 
 export default function ResetPage() {
-  const [cleared, setCleared] = useState(false);
+  const [status, setStatus] = useState('Clearing all data...');
 
   useEffect(() => {
-    // Clear localStorage
-    try {
-      localStorage.removeItem('habitBuiltWinners');
-      console.log('✅ localStorage cleared');
-      setCleared(true);
+    async function reset() {
+      try {
+        // 1. Clear localStorage
+        localStorage.removeItem('habitBuiltWinners');
+        localStorage.clear();
+        console.log('✅ localStorage cleared');
 
-      // Redirect to home after 2 seconds
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 2000);
-    } catch (error) {
-      console.error('❌ Error clearing cache:', error);
+        // 2. Call API to clear Supabase (if available)
+        try {
+          const response = await fetch('/api/clear-all', { method: 'POST' });
+          const result = await response.json();
+          console.log('✅ Supabase cleared:', result);
+          setStatus('Cleared Supabase database...');
+        } catch (e) {
+          console.warn('⚠️ Could not call clear API, but localStorage is clear');
+        }
+
+        // 3. Hard refresh after a delay
+        setStatus('Refreshing page...');
+        setTimeout(() => {
+          // Force hard refresh by adding timestamp to URL
+          window.location.href = '/dashboard?t=' + Date.now() + '&clear=1';
+        }, 1500);
+      } catch (error) {
+        console.error('❌ Error:', error);
+        setStatus('Error occurred, but trying to reload...');
+        setTimeout(() => {
+          window.location.href = '/dashboard?t=' + Date.now();
+        }, 2000);
+      }
     }
+
+    reset();
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-purple-100 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 md:p-12 text-center">
-        {cleared ? (
-          <>
-            <div className="text-6xl mb-6">✨</div>
-            <h1 className="text-3xl font-bold text-green-700 mb-4">
-              All Clear!
-            </h1>
-            <p className="text-xl text-gray-700 mb-4">
-              Quiz data has been reset. Redirecting you home...
-            </p>
-            <p className="text-sm text-gray-500">
-              (If not redirected, <a href="/" className="text-green-600 hover:underline">click here</a>)
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="text-6xl mb-6 animate-spin">🔄</div>
-            <h1 className="text-3xl font-bold text-gray-700 mb-4">
-              Resetting Quiz Data...
-            </h1>
-            <p className="text-xl text-gray-700">
-              Please wait...
-            </p>
-          </>
-        )}
+        <div className="text-6xl mb-6 animate-spin">🔄</div>
+        <h1 className="text-3xl font-bold text-gray-700 mb-4">
+          {status}
+        </h1>
+        <p className="text-lg text-gray-600 mb-6">
+          Removing all quiz submissions...
+        </p>
+        <p className="text-sm text-gray-500">
+          If the page doesn't update automatically,{' '}
+          <a href="/dashboard" className="text-green-600 hover:underline font-semibold">
+            click here
+          </a>
+        </p>
       </div>
     </div>
   );
