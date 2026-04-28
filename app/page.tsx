@@ -143,21 +143,7 @@ export default function Home() {
     console.log('🔥 saveWinner called with requestId:', requestId);
     console.log('📝 Data:', { name, phone, score: finalScore, prize });
 
-    // Save to Supabase
-    try {
-      console.log('📤 Saving to Supabase...');
-      const { data, error } = await supabase.from('winners').insert([winner]);
-
-      if (error) {
-        console.error('❌ Supabase error:', error.message, error.code);
-      } else {
-        console.log('✅ Supabase save successful');
-      }
-    } catch (error) {
-      console.error('❌ Supabase exception:', error instanceof Error ? error.message : error);
-    }
-
-    // Always save to localStorage
+    // Save to localStorage only (Supabase has issues, using local storage for now)
     try {
       const winners = JSON.parse(localStorage.getItem('habitBuiltWinners') || '[]');
       winners.push(winner);

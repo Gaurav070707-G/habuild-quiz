@@ -32,52 +32,26 @@ export default function Dashboard() {
     }
 
     const loadData = async () => {
-      // Step 1: Load from localStorage immediately (if exists)
+      // Load from localStorage only (Supabase has issues)
       const cached = localStorage.getItem('habitBuiltWinners');
-      console.log('📦 localStorage raw value:', cached?.substring(0, 100));
+      console.log('📦 Loading from localStorage...');
+
       if (cached && isMounted) {
         try {
           const parsedCache = JSON.parse(cached);
           setSubmissions(parsedCache);
-          console.log(`✅ Loaded ${parsedCache.length} from localStorage cache`);
+          console.log(`✅ Loaded ${parsedCache.length} submissions from localStorage`);
         } catch (e) {
-          console.error('Cache parse error:', e);
+          console.error('❌ Cache parse error:', e);
+          setSubmissions([]);
         }
       } else {
-        console.log('⚠️  No localStorage cache found');
+        console.log('ℹ️ No submissions found');
+        setSubmissions([]);
       }
 
-      // Step 2: Fetch from Supabase with timeout
-      try {
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Supabase timeout')), 5000)
-        );
-
-        const supabasePromise = supabase
-          .from('winners')
-          .select('*')
-          .limit(INITIAL_LIMIT)
-          .order('timestamp', { ascending: false });
-
-        const { data: supabaseData, error } = await Promise.race([supabasePromise, timeoutPromise]) as any;
-
-        if (error) throw error;
-
-        if (isMounted && supabaseData && supabaseData.length > 0) {
-          setSubmissions(supabaseData);
-          // Update localStorage cache
-          localStorage.setItem('habitBuiltWinners', JSON.stringify(supabaseData));
-          console.log(`✅ Loaded ${supabaseData.length} from Supabase`);
-        } else if (isMounted) {
-          console.log('⚠️  Supabase returned empty or no data');
-        }
-      } catch (error) {
-        console.warn('❌ Supabase error/timeout, keeping localStorage cache:', error instanceof Error ? error.message : error);
-        // Already have cache displayed, just continue
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      if (isMounted) {
+        setLoading(false);
       }
     };
 
