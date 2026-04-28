@@ -71,6 +71,18 @@ const wellnessTips = [
   'The best yoga practice is the one you do 🙏',
 ];
 
+const getWhatsAppMessage = (finalScore: number, name: string) => {
+  let message = '';
+  if (finalScore >= 8) {
+    message = `🎉 I scored ${finalScore}/10 on the Habuild Yoga Quiz! I'm a true yogi! 🧘 Can you beat my score? Try it: https://habuild-quiz.vercel.app`;
+  } else if (finalScore >= 5) {
+    message = `🙏 I scored ${finalScore}/10 on the Habuild Yoga Quiz! Improving my yoga knowledge daily 🧘 Challenge yourself: https://habuild-quiz.vercel.app`;
+  } else {
+    message = `🧘 Just took the Habuild Yoga Quiz and scored ${finalScore}/10! Testing my yoga knowledge... 🌬️ Take the challenge: https://habuild-quiz.vercel.app`;
+  }
+  return encodeURIComponent(message);
+};
+
 type Screen = 'welcome' | 'leadCapture' | 'quiz' | 'fail' | 'win' | 'spin' | 'prize';
 
 // Shuffle options helper
@@ -470,6 +482,14 @@ export default function Home() {
               </p>
             </div>
             <div className="space-y-3">
+              <a
+                href={`https://wa.me/?text=${getWhatsAppMessage(score, name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block px-6 py-3 bg-green-500 text-white font-bold rounded-lg hover:shadow-lg transition-all"
+              >
+                Share on WhatsApp 💬
+              </a>
               <button
                 onClick={resetQuiz}
                 className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
@@ -607,6 +627,15 @@ export default function Home() {
               className="block w-full px-8 py-4 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold text-lg rounded-lg hover:shadow-lg transition-all mb-3"
             >
               Join Habuild Free Yoga 🧘
+            </a>
+
+            <a
+              href={`https://wa.me/?text=${getWhatsAppMessage(score, name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all mb-3"
+            >
+              Share on WhatsApp 💬
             </a>
 
             <button
