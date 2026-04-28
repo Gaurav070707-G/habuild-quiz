@@ -73,6 +73,25 @@ const wellnessTips = [
 
 type Screen = 'welcome' | 'leadCapture' | 'quiz' | 'fail' | 'win' | 'spin' | 'prize';
 
+// Shuffle options helper
+const shuffleOptions = (options: string[], correctIndex: number) => {
+  const answersWithIndex = options.map((text, idx) => ({ text, isCorrect: idx === correctIndex }));
+  for (let i = answersWithIndex.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [answersWithIndex[i], answersWithIndex[j]] = [answersWithIndex[j], answersWithIndex[i]];
+  }
+  return {
+    shuffledOptions: answersWithIndex.map(a => a.text),
+    newCorrectIndex: answersWithIndex.findIndex(a => a.isCorrect),
+  };
+};
+
+type ShuffledQuestion = {
+  question: string;
+  options: string[];
+  correctIndex: number;
+};
+
 // Rule: Spin wheel cannot stop on water bottle (index 0) - only 1, 2, 3
 
 const COUNTRY_CODES = [
@@ -112,6 +131,7 @@ export default function Home() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
   const [savedRequestIds, setSavedRequestIds] = useState<Set<string>>(new Set());
+  const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
 
   const handleAnswer = (selectedIndex: number) => {
     // Prevent double-submission during feedback
@@ -120,17 +140,17 @@ export default function Home() {
     setSelectedAnswerIndex(selectedIndex);
     setShowFeedback(true);
 
-    if (selectedIndex === questions[currentQuestion].correctIndex) {
+    if (selectedIndex === shuffledQuestions[currentQuestion].correctIndex) {
       setScore((prev) => prev + 1);
     }
 
     setTimeout(() => {
-      if (currentQuestion < questions.length - 1) {
+      if (currentQuestion < shuffledQuestions.length - 1) {
         setCurrentQuestion((prev) => prev + 1);
         setSelectedAnswerIndex(null);
         setShowFeedback(false);
       } else {
-        const finalScore = selectedIndex === questions[currentQuestion].correctIndex ? score + 1 : score;
+        const finalScore = selectedIndex === shuffledQuestions[currentQuestion].correctIndex ? score + 1 : score;
         if (finalScore >= 8) {
           setScore(finalScore);
           setScreen('win');
@@ -245,6 +265,16 @@ export default function Home() {
 
   const startQuiz = () => {
     if (name.trim() && phone.trim() && countryCode) {
+      // Shuffle options for each question
+      const shuffled = questions.map(q => {
+        const { shuffledOptions, newCorrectIndex } = shuffleOptions(q.options, q.correctIndex);
+        return {
+          question: q.question,
+          options: shuffledOptions,
+          correctIndex: newCorrectIndex,
+        };
+      });
+      setShuffledQuestions(shuffled);
       setScreen('quiz');
     }
   };
@@ -367,35 +397,35 @@ export default function Home() {
         )}
 
         {/* Quiz Screen */}
-        {screen === 'quiz' && (
+        {screen === 'quiz' && shuffledQuestions.length > 0 && (
           <div>
             {/* Progress Bar */}
             <div className="mb-8">
               <div className="flex justify-between text-sm font-semibold text-gray-700 mb-2">
                 <span>Question {currentQuestion + 1}</span>
-                <span>of {questions.length}</span>
+                <span>of {shuffledQuestions.length}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-gradient-to-r from-green-600 to-purple-600 h-3 rounded-full transition-all duration-300"
                   style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100}%`,
+                    width: `${((currentQuestion + 1) / shuffledQuestions.length) * 100}%`,
                   }}
                 ></div>
               </div>
               <div className="mt-2 text-right text-sm text-gray-600">
-                Score: {score}/{questions.length}
+                Score: {score}/{shuffledQuestions.length}
               </div>
             </div>
 
             {/* Question */}
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-8 text-center">
-              {questions[currentQuestion].question}
+              {shuffledQuestions[currentQuestion].question}
             </h2>
 
             {/* Answer Options */}
             <div className="space-y-3">
-              {questions[currentQuestion].options.map((option, index) => (
+              {shuffledQuestions[currentQuestion].options.map((option, index) => (
                 <button
                   key={index}
                   onClick={() => handleAnswer(index)}
@@ -403,7 +433,7 @@ export default function Home() {
                   className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
                     selectedAnswerIndex === null
                       ? 'bg-white border-2 border-gray-300 text-gray-800 hover:border-green-600 hover:bg-green-50'
-                      : index === questions[currentQuestion].correctIndex
+                      : index === shuffledQuestions[currentQuestion].correctIndex
                       ? 'bg-green-500 border-2 border-green-500 text-white'
                       : index === selectedAnswerIndex
                       ? 'bg-red-500 border-2 border-red-500 text-white'
@@ -412,8 +442,8 @@ export default function Home() {
                 >
                   <div className="flex items-center">
                     <span className="mr-3 text-lg">
-                      {index === questions[currentQuestion].correctIndex && showFeedback ? '✓' : ''}
-                      {index === selectedAnswerIndex && showFeedback && index !== questions[currentQuestion].correctIndex ? '✗' : ''}
+                      {index === shuffledQuestions[currentQuestion].correctIndex && showFeedback ? '✓' : ''}
+                      {index === selectedAnswerIndex && showFeedback && index !== shuffledQuestions[currentQuestion].correctIndex ? '✗' : ''}
                     </span>
                     <span>{option}</span>
                   </div>
