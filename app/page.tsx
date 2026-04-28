@@ -442,7 +442,7 @@ export default function Home() {
                   key={index}
                   onClick={() => handleAnswer(index)}
                   disabled={showFeedback}
-                  className={`w-full p-4 rounded-lg text-left font-semibold transition-all shimmer-hover ${
+                  className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
                     selectedAnswerIndex === null
                       ? 'bg-white border-2 border-gray-300 text-gray-800'
                       : index === shuffledQuestions[currentQuestion].correctIndex
