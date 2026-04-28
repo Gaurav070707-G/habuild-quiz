@@ -7,7 +7,7 @@ interface Submission {
   name: string;
   city: string;
   phone: string;
-  countryCode?: string;
+  country_code?: string;
   score: number;
   prize: string;
   timestamp: string;
@@ -139,7 +139,7 @@ export default function Dashboard() {
     const headers = ['Name', 'Country Code', 'Phone', 'City', 'Score', 'Prize', 'Timestamp'];
     const rows = submissions.map(s => [
       `"${s.name}"`,
-      `"${s.countryCode || ''}"`,
+      `"${s.country_code || ''}"`,
       `"${s.phone}"`,
       `"${s.city}"`,
       s.score,
@@ -289,7 +289,7 @@ export default function Dashboard() {
                         <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
                           <div className="flex-1">
                             <div className="font-semibold text-gray-800">#{i + 1} {sub.name}</div>
-                            <div className="text-xs text-gray-600">{sub.countryCode && `${sub.countryCode} `}{sub.phone}</div>
+                            <div className="text-xs text-gray-600">{sub.country_code && `${sub.country_code} `}{sub.phone}</div>
                           </div>
                           <div className="font-bold text-green-600">{sub.score}/10</div>
                         </div>
@@ -312,8 +312,8 @@ export default function Dashboard() {
                     <div className="text-sm font-medium text-blue-700 mb-2">📍 {sub.city}</div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg">📞</span>
-                      <a href={`tel:${sub.countryCode || ''}${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
-                        {sub.countryCode && `${sub.countryCode} `}{sub.phone}
+                      <a href={`tel:${sub.country_code || ''}${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
+                        {sub.country_code && `${sub.country_code} `}{sub.phone}
                       </a>
                     </div>
                     <div className="mt-2 text-xs text-gray-600">
@@ -344,7 +344,7 @@ export default function Dashboard() {
                     {paginatedSubmissions.map((sub, i) => (
                       <tr key={i} className="border-b border-gray-200 hover:bg-indigo-50 transition">
                         <td className="p-3 text-gray-800 font-medium">{sub.name}</td>
-                        <td className="p-3 text-gray-800 font-bold text-purple-700">{sub.countryCode || '-'}</td>
+                        <td className="p-3 text-gray-800 font-bold text-purple-700">{sub.country_code || '-'}</td>
                         <td className="p-3 text-gray-800">{sub.phone}</td>
                         <td className="p-3 text-gray-800 font-bold text-blue-700">📍 {sub.city}</td>
                         <td className="p-3 text-center">

@@ -159,7 +159,7 @@ export default function Home() {
       name,
       city,
       phone,
-      countryCode,
+      country_code: countryCode,
       score: finalScore,
       prize: prize || 'pending',
       timestamp: new Date().toISOString(),
@@ -174,9 +174,9 @@ export default function Home() {
       // First try with countryCode
       let { data, error } = await supabase.from('winners').insert([winner]);
 
-      // If countryCode column doesn't exist, save without it
-      if (error?.code === 'PGRST204' || error?.message?.includes('countryCode')) {
-        console.warn('⚠️  countryCode column not found, saving without it...');
+      // If country_code column doesn't exist, save without it
+      if (error?.code === 'PGRST204' || error?.message?.includes('country_code')) {
+        console.warn('⚠️  country_code column not found, saving without it...');
         const { name, city, phone, score, prize, timestamp } = winner;
         ({ data, error } = await supabase.from('winners').insert([
           { name, city, phone, score, prize, timestamp }
