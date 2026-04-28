@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { collection, query, limit, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 
 interface Submission {
   name: string;
@@ -26,9 +25,16 @@ export default function Dashboard() {
   useEffect(() => {
     let isMounted = true;
 
+    // Check if we should clear cache (add ?clear=1 to URL)
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('clear')) {
+      localStorage.removeItem('habitBuiltWinners');
+      console.log('🧹 localStorage cleared via query parameter');
+    }
+
     const loadData = async () => {
       // Step 1: Load from localStorage immediately (if exists)
       const cached = localStorage.getItem('habitBuiltWinners');
+      console.log('📦 localStorage raw value:', cached?.substring(0, 100));
       if (cached && isMounted) {
         try {
           const parsedCache = JSON.parse(cached);
@@ -37,32 +43,36 @@ export default function Dashboard() {
         } catch (e) {
           console.error('Cache parse error:', e);
         }
+      } else {
+        console.log('⚠️  No localStorage cache found');
       }
 
-      // Step 2: Fetch from Firebase with timeout
+      // Step 2: Fetch from Supabase with timeout
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Firebase timeout')), 5000)
+          setTimeout(() => reject(new Error('Supabase timeout')), 5000)
         );
 
-        const q = query(collection(db, 'winners'), limit(INITIAL_LIMIT));
-        const racePromise = Promise.race([getDocs(q), timeoutPromise]);
+        const supabasePromise = supabase
+          .from('winners')
+          .select('*')
+          .limit(INITIAL_LIMIT)
+          .order('timestamp', { ascending: false });
 
-        const snapshot = await racePromise as any;
-        const firebaseData: Submission[] = [];
+        const { data: supabaseData, error } = await Promise.race([supabasePromise, timeoutPromise]) as any;
 
-        snapshot.forEach((doc: any) => {
-          firebaseData.push(doc.data() as Submission);
-        });
+        if (error) throw error;
 
-        if (isMounted) {
-          setSubmissions(firebaseData);
+        if (isMounted && supabaseData && supabaseData.length > 0) {
+          setSubmissions(supabaseData);
           // Update localStorage cache
-          localStorage.setItem('habitBuiltWinners', JSON.stringify(firebaseData));
-          console.log(`✅ Loaded ${firebaseData.length} from Firebase`);
+          localStorage.setItem('habitBuiltWinners', JSON.stringify(supabaseData));
+          console.log(`✅ Loaded ${supabaseData.length} from Supabase`);
+        } else if (isMounted) {
+          console.log('⚠️  Supabase returned empty or no data');
         }
       } catch (error) {
-        console.warn('Firebase load timeout or error, using cache:', error);
+        console.warn('❌ Supabase error/timeout, keeping localStorage cache:', error instanceof Error ? error.message : error);
         // Already have cache displayed, just continue
       } finally {
         if (isMounted) {
@@ -241,7 +251,7 @@ export default function Dashboard() {
                     <div key={i} className="flex items-center justify-between p-3 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
                       <div className="flex-1">
                         <div className="font-semibold text-gray-800">{i + 1}. {sub.name}</div>
-                        <div className="text-sm text-gray-600">{sub.city}</div>
+                        <div className="text-sm font-medium text-blue-700">📍 {sub.city}</div>
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-indigo-600">{sub.score}</div>
@@ -258,11 +268,13 @@ export default function Dashboard() {
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-indigo-300 rounded-lg mb-4 focus:outline-none focus:border-indigo-600 font-medium"
+                  className="w-full px-4 py-3 border-2 border-indigo-300 rounded-lg mb-4 focus:outline-none focus:border-indigo-600 font-semibold text-gray-800 bg-white text-base"
                 >
-                  <option value="">Select a city...</option>
+                  <option value="" className="text-gray-600">📍 Select a city...</option>
                   {cities.map(city => (
-                    <option key={city} value={city}>{city}</option>
+                    <option key={city} value={city} className="text-gray-800 font-semibold">
+                      📍 {city}
+                    </option>
                   ))}
                 </select>
 
@@ -295,7 +307,7 @@ export default function Dashboard() {
                 {[...submissions].map((sub, i) => (
                   <div key={i} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-md transition">
                     <div className="font-semibold text-gray-800">{sub.name}</div>
-                    <div className="text-sm text-gray-600 mb-2">{sub.city}</div>
+                    <div className="text-sm font-medium text-blue-700 mb-2">📍 {sub.city}</div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg">📞</span>
                       <a href={`tel:${sub.phone}`} className="text-blue-600 hover:text-blue-800 font-mono font-semibold text-sm">
@@ -328,9 +340,9 @@ export default function Dashboard() {
                   <tbody>
                     {paginatedSubmissions.map((sub, i) => (
                       <tr key={i} className="border-b border-gray-200 hover:bg-indigo-50 transition">
-                        <td className="p-3 text-gray-800">{sub.name}</td>
+                        <td className="p-3 text-gray-800 font-medium">{sub.name}</td>
                         <td className="p-3 text-gray-800">{sub.phone}</td>
-                        <td className="p-3 text-gray-800">{sub.city}</td>
+                        <td className="p-3 text-gray-800 font-bold text-blue-700">📍 {sub.city}</td>
                         <td className="p-3 text-center">
                           <span className={`px-3 py-1 rounded-full font-bold text-xs ${
                             sub.score >= 8
