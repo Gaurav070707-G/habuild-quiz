@@ -407,7 +407,7 @@ export default function Home() {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-gradient-to-r from-green-600 to-purple-600 h-3 rounded-full transition-all duration-300"
+                  className="bg-purple-600 h-3 rounded-full transition-all duration-300"
                   style={{
                     width: `${((currentQuestion + 1) / shuffledQuestions.length) * 100}%`,
                   }}
