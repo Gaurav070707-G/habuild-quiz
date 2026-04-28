@@ -171,7 +171,17 @@ export default function Home() {
     // Save to Supabase
     try {
       console.log('📤 Saving to Supabase...');
-      const { data, error } = await supabase.from('winners').insert([winner]);
+      // First try with countryCode
+      let { data, error } = await supabase.from('winners').insert([winner]);
+
+      // If countryCode column doesn't exist, save without it
+      if (error?.code === 'PGRST204' || error?.message?.includes('countryCode')) {
+        console.warn('⚠️  countryCode column not found, saving without it...');
+        const { name, city, phone, score, prize, timestamp } = winner;
+        ({ data, error } = await supabase.from('winners').insert([
+          { name, city, phone, score, prize, timestamp }
+        ]));
+      }
 
       if (error) {
         console.error('❌ Supabase error:', error.message, error.code);
