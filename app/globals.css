@@ -36,9 +36,10 @@ body {
 
 .shimmer-hover {
   position: relative;
+  overflow: hidden;
 }
 
-.shimmer-hover:hover:not(:disabled)::before {
+.shimmer-hover::before {
   content: '';
   position: absolute;
   top: 0;
@@ -52,7 +53,13 @@ body {
     transparent 100%
   );
   background-size: 200% 100%;
-  animation: pinkShimmer 1.5s ease-in-out;
+  opacity: 0;
   pointer-events: none;
   border-radius: inherit;
+  transition: opacity 0.2s ease;
+}
+
+.shimmer-hover:hover:not(:disabled)::before {
+  opacity: 1;
+  animation: pinkShimmer 1.5s ease-in-out;
 }
