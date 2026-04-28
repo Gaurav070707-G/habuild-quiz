@@ -444,7 +444,7 @@ export default function Home() {
                   disabled={showFeedback}
                   className={`w-full p-4 rounded-lg text-left font-semibold transition-all ${
                     selectedAnswerIndex === null
-                      ? 'bg-white border-2 border-gray-300 text-gray-800 hover:border-green-600 hover:bg-green-50'
+                      ? 'bg-white border-2 border-gray-300 text-gray-800'
                       : index === shuffledQuestions[currentQuestion].correctIndex
                       ? 'bg-green-500 border-2 border-green-500 text-white'
                       : index === selectedAnswerIndex
