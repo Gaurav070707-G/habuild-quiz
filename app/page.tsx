@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from './lib/firebase';
+import { supabase } from './lib/supabase';
 
 const questions = [
   {
@@ -88,8 +87,12 @@ export default function Home() {
   const [wonPrizeIndex, setWonPrizeIndex] = useState<number | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
+  const [savedRequestIds, setSavedRequestIds] = useState<Set<string>>(new Set());
 
   const handleAnswer = (selectedIndex: number) => {
+    // Prevent double-submission during feedback
+    if (showFeedback) return;
+
     setSelectedAnswerIndex(selectedIndex);
     setShowFeedback(true);
 
@@ -105,9 +108,10 @@ export default function Home() {
       } else {
         const finalScore = selectedIndex === questions[currentQuestion].correctIndex ? score + 1 : score;
         if (finalScore >= 8) {
-          saveWinner(finalScore, null);
+          setScore(finalScore);
           setScreen('win');
         } else {
+          saveWinner(finalScore, 'pending');
           setScreen('fail');
         }
       }
@@ -115,6 +119,18 @@ export default function Home() {
   };
 
   const saveWinner = async (finalScore: number, prize: string | null) => {
+    // Generate unique request ID
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    // Check if this exact save was already attempted
+    if (savedRequestIds.has(requestId)) {
+      console.warn('⚠️ Duplicate save detected - request already processed:', requestId);
+      return;
+    }
+
+    // Add to saved list to prevent duplicates
+    setSavedRequestIds((prev) => new Set(prev).add(requestId));
+
     const winner = {
       name,
       city,
@@ -124,17 +140,32 @@ export default function Home() {
       timestamp: new Date().toISOString(),
     };
 
+    console.log('🔥 saveWinner called with requestId:', requestId);
+    console.log('📝 Data:', { name, phone, score: finalScore, prize });
+
+    // Save to Supabase
     try {
-      // Save to Firebase Firestore
-      await addDoc(collection(db, 'winners'), winner);
+      console.log('📤 Saving to Supabase...');
+      const { data, error } = await supabase.from('winners').insert([winner]);
+
+      if (error) {
+        console.error('❌ Supabase error:', error.message, error.code);
+      } else {
+        console.log('✅ Supabase save successful');
+      }
     } catch (error) {
-      console.error('Failed to save winner to Firebase:', error);
+      console.error('❌ Supabase exception:', error instanceof Error ? error.message : error);
     }
 
-    // Also save to localStorage for instant display
-    const winners = JSON.parse(localStorage.getItem('habitBuiltWinners') || '[]');
-    winners.push(winner);
-    localStorage.setItem('habitBuiltWinners', JSON.stringify(winners));
+    // Always save to localStorage
+    try {
+      const winners = JSON.parse(localStorage.getItem('habitBuiltWinners') || '[]');
+      winners.push(winner);
+      localStorage.setItem('habitBuiltWinners', JSON.stringify(winners));
+      console.log('✅ localStorage save successful, total entries:', winners.length);
+    } catch (error) {
+      console.error('❌ localStorage error:', error);
+    }
   };
 
   const handleSpinWheel = () => {
@@ -342,7 +373,7 @@ export default function Home() {
               Oops! Better Luck Next Time
             </h2>
             <p className="text-2xl font-semibold text-purple-600 mb-6">
-              You scored {score}/{questions.length}
+              You scored {score > 0 ? score : 0}/{questions.length}
             </p>
             <div className="bg-gradient-to-r from-blue-100 to-green-100 rounded-2xl p-8 mb-8">
               <p className="text-lg text-gray-800 mb-2">💡 Wellness Tip:</p>
@@ -433,14 +464,14 @@ export default function Home() {
             {/* Spin Button */}
             <button
               onClick={handleSpinWheel}
-              disabled={isSpinning}
+              disabled={isSpinning || wonPrizeIndex !== null}
               className={`px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold text-lg rounded-lg transition-all ${
-                isSpinning
+                isSpinning || wonPrizeIndex !== null
                   ? 'opacity-60 cursor-not-allowed'
                   : 'hover:shadow-lg hover:scale-105'
               }`}
             >
-              {isSpinning ? 'Spinning... 🎡' : 'Spin to Win! 🎁'}
+              {isSpinning ? 'Spinning... 🎡' : wonPrizeIndex !== null ? 'Already Spun! 🎁' : 'Spin to Win! 🎁'}
             </button>
 
             {/* Result appears after spin */}
