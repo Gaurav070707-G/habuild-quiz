@@ -519,9 +519,11 @@ export default function Home() {
                   </div>
                   <input
                     type="tel"
+                    inputMode="numeric"
                     value={phone}
                     onChange={(e) => {
-                      setPhone(e.target.value);
+                      const numericOnly = e.target.value.replace(/[^\d]/g, '');
+                      setPhone(numericOnly);
                       setPhoneError('');
                     }}
                     className={`flex-1 px-4 py-3 border-2 rounded-lg focus:outline-none text-gray-800 bg-white ${
