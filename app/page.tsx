@@ -144,6 +144,7 @@ export default function Home() {
   const [wheelRotation, setWheelRotation] = useState(0);
   const [savedRequestIds, setSavedRequestIds] = useState<Set<string>>(new Set());
   const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
+  const [phoneError, setPhoneError] = useState('');
 
   const handleAnswer = (selectedIndex: number) => {
     // Prevent double-submission during feedback
@@ -275,8 +276,18 @@ export default function Home() {
     setWheelRotation(0);
   };
 
+  const validatePhone = (phoneNumber: string): boolean => {
+    const phoneDigits = phoneNumber.replace(/\D/g, '');
+    return phoneDigits.length === 10;
+  };
+
   const startQuiz = () => {
-    if (name.trim() && phone.trim() && countryCode) {
+    if (!validatePhone(phone)) {
+      setPhoneError('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    if (name.trim() && phone.trim() && countryCode && city.trim()) {
       // Shuffle options for each question
       const shuffled = questions.map(q => {
         const { shuffledOptions, newCorrectIndex } = shuffleOptions(q.options, q.correctIndex);
@@ -376,7 +387,7 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number
+                  Phone Number (10 digits)
                 </label>
                 <div className="flex gap-2">
                   <div className="flex items-center px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-800 font-semibold whitespace-nowrap">
@@ -385,11 +396,22 @@ export default function Home() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setPhoneError('');
+                    }}
+                    className={`flex-1 px-4 py-3 border-2 rounded-lg focus:outline-none text-gray-800 bg-white ${
+                      phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-green-600'
+                    }`}
                     placeholder="Your phone number"
                   />
                 </div>
+                {phoneError && <p className="text-red-500 text-sm mt-2">{phoneError}</p>}
+                {phone && !phoneError && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Digits entered: {phone.replace(/\D/g, '').length}/10
+                  </p>
+                )}
               </div>
             </div>
             <button
