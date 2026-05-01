@@ -110,10 +110,10 @@ const questionsHindi = [
 ];
 
 const prizes = [
-  { label: 'Water Bottle 🍾', emoji: '🍾', color: '#4A90E2' },
-  { label: 'Yoga App Access 📱', emoji: '📱', color: '#7C3AED' },
-  { label: 'Yoga Handbook 📖', emoji: '📖', color: '#059669' },
-  { label: '1 Month Free Yoga 🧘', emoji: '🧘', color: '#DC2626' },
+  { label: 'Water Bottle 🍾', labelHi: 'पानी की बोतल 🍾', emoji: '🍾', color: '#4A90E2' },
+  { label: 'Yoga App Access 📱', labelHi: 'योग ऐप एक्सेस 📱', emoji: '📱', color: '#7C3AED' },
+  { label: 'Yoga Handbook 📖', labelHi: 'योग हैंडबुक 📖', emoji: '📖', color: '#059669' },
+  { label: '1 Month Free Yoga 🧘', labelHi: '1 महीना मुफ़्त योग 🧘', emoji: '🧘', color: '#DC2626' },
 ];
 
 const wellnessTips = [
@@ -161,26 +161,26 @@ type ShuffledQuestion = {
 // Rule: Spin wheel cannot stop on water bottle (index 0) - only 1, 2, 3
 
 const COUNTRY_CODES = [
-  { code: '+1', country: 'United States/Canada' },
-  { code: '+44', country: 'United Kingdom' },
-  { code: '+91', country: 'India' },
-  { code: '+86', country: 'China' },
-  { code: '+81', country: 'Japan' },
-  { code: '+82', country: 'South Korea' },
-  { code: '+33', country: 'France' },
-  { code: '+49', country: 'Germany' },
-  { code: '+39', country: 'Italy' },
-  { code: '+34', country: 'Spain' },
-  { code: '+61', country: 'Australia' },
-  { code: '+64', country: 'New Zealand' },
-  { code: '+27', country: 'South Africa' },
-  { code: '+55', country: 'Brazil' },
-  { code: '+1', country: 'Mexico' },
-  { code: '+65', country: 'Singapore' },
-  { code: '+60', country: 'Malaysia' },
-  { code: '+62', country: 'Indonesia' },
-  { code: '+66', country: 'Thailand' },
-  { code: '+84', country: 'Vietnam' },
+  { code: '+1', country: 'United States/Canada', countryHi: 'संयुक्त राज्य अमेरिका/कनाडा' },
+  { code: '+44', country: 'United Kingdom', countryHi: 'यूनाइटेड किंगडम' },
+  { code: '+91', country: 'India', countryHi: 'भारत' },
+  { code: '+86', country: 'China', countryHi: 'चीन' },
+  { code: '+81', country: 'Japan', countryHi: 'जापान' },
+  { code: '+82', country: 'South Korea', countryHi: 'दक्षिण कोरिया' },
+  { code: '+33', country: 'France', countryHi: 'फ्रांस' },
+  { code: '+49', country: 'Germany', countryHi: 'जर्मनी' },
+  { code: '+39', country: 'Italy', countryHi: 'इटली' },
+  { code: '+34', country: 'Spain', countryHi: 'स्पेन' },
+  { code: '+61', country: 'Australia', countryHi: 'ऑस्ट्रेलिया' },
+  { code: '+64', country: 'New Zealand', countryHi: 'न्यूजीलैंड' },
+  { code: '+27', country: 'South Africa', countryHi: 'दक्षिण अफ्रीका' },
+  { code: '+55', country: 'Brazil', countryHi: 'ब्राज़ील' },
+  { code: '+1', country: 'Mexico', countryHi: 'मेक्सिको' },
+  { code: '+65', country: 'Singapore', countryHi: 'सिंगापुर' },
+  { code: '+60', country: 'Malaysia', countryHi: 'मलेशिया' },
+  { code: '+62', country: 'Indonesia', countryHi: 'इंडोनेशिया' },
+  { code: '+66', country: 'Thailand', countryHi: 'थाईलैंड' },
+  { code: '+84', country: 'Vietnam', countryHi: 'वियतनाम' },
 ];
 
 const PHONE_LENGTH_BY_COUNTRY: { [key: string]: { min: number; max: number } } = {
@@ -442,7 +442,7 @@ export default function Home() {
                   style={{ backgroundColor: prize.color }}
                 >
                   <div className="text-3xl mb-2">{prize.emoji}</div>
-                  <div className="text-sm">{prize.label}</div>
+                  <div className="text-sm">{language === 'hi' ? prize.labelHi : prize.label}</div>
                 </div>
               ))}
             </div>
@@ -499,7 +499,7 @@ export default function Home() {
                   <option value="">{t('Select your country code...', 'अपना देश कोड चुनें...')}</option>
                   {COUNTRY_CODES.map((item) => (
                     <option key={item.code + item.country} value={item.code}>
-                      {item.code} {item.country}
+                      {item.code} {language === 'hi' ? item.countryHi : item.country}
                     </option>
                   ))}
                 </select>
@@ -625,9 +625,12 @@ export default function Home() {
               You scored {score > 0 ? score : 0}/{getQuestions().length}
             </p>
             <div className="bg-gradient-to-r from-blue-100 to-green-100 rounded-2xl p-8 mb-8">
-              <p className="text-lg text-gray-800 mb-2">💡 Wellness Tip:</p>
+              <p className="text-lg text-gray-800 mb-2">{t('💡 Wellness Tip:', '💡 wellness टिप:')}</p>
               <p className="text-xl font-semibold text-gray-900">
-                {wellnessTips[Math.floor(Math.random() * wellnessTips.length)]}
+                {language === 'hi'
+                  ? ['रोज़ाना गहरी सांस लें 🌬️', '5 मिनट योग > कोई योग नहीं 🧘', 'सतर्कता तीव्रता से अधिक महत्वपूर्ण है 📅', 'योग चटाई पर हर शरीर सुंदर है 💚', 'सबसे अच्छा योग अभ्यास वह है जो आप करते हैं 🙏'][Math.floor(Math.random() * 5)]
+                  : wellnessTips[Math.floor(Math.random() * wellnessTips.length)]
+                }
               </p>
             </div>
             <div className="space-y-3">
@@ -662,7 +665,7 @@ export default function Home() {
           <div className="text-center">
             <div className="text-6xl mb-6">🎉</div>
             <h2 className="text-3xl font-bold text-green-700 mb-2">
-              Congratulations! You're a True Yogi!
+              {t('Congratulations! You\'re a True Yogi!', 'बधाई हो! आप एक सच्चे योगी हैं!')}
             </h2>
             <p className="text-xl text-purple-600 font-semibold mb-8">
               You scored {score}/{getQuestions().length} — Amazing! 🙌
@@ -728,21 +731,25 @@ export default function Home() {
                   : 'hover:shadow-lg hover:scale-105'
               }`}
             >
-              {isSpinning ? 'Spinning... 🎡' : wonPrizeIndex !== null ? 'Already Spun! 🎁' : 'Spin to Win! 🎁'}
+              {isSpinning
+                ? t('Spinning... 🎡', 'घूम रहा है... 🎡')
+                : wonPrizeIndex !== null
+                ? t('Already Spun! 🎁', 'पहले से घूम चुका है! 🎁')
+                : t('Spin to Win! 🎁', 'जीतने के लिए घुमाएं! 🎁')}
             </button>
 
             {/* Result appears after spin */}
             {!isSpinning && wonPrizeIndex !== null && (
               <div className="mt-8 space-y-4">
                 <div className="p-6 bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl animate-bounce">
-                  <p className="text-2xl font-bold text-purple-600 mb-2">🏆 You Won!</p>
-                  <p className="text-xl font-bold text-gray-800">{prizes[wonPrizeIndex].label}</p>
+                  <p className="text-2xl font-bold text-purple-600 mb-2">🏆 {t('You Won!', 'आप जीत गए!')}</p>
+                  <p className="text-xl font-bold text-gray-800">{language === 'hi' ? prizes[wonPrizeIndex].labelHi : prizes[wonPrizeIndex].label}</p>
                 </div>
                 <button
                   onClick={() => setScreen('prize')}
                   className="w-full px-8 py-4 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold text-lg rounded-lg hover:shadow-lg transition-all"
                 >
-                  Claim Your Prize! 🎁
+                  {t('Claim Your Prize! 🎁', 'अपना पुरस्कार प्राप्त करें! 🎁')}
                 </button>
               </div>
             )}
@@ -754,18 +761,18 @@ export default function Home() {
           <div className="text-center">
             <div className="text-6xl mb-6">{prizes[wonPrizeIndex].emoji}</div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              You Won!
+              {t('You Won!', 'आप जीत गए!')}
             </h2>
             <p className="text-2xl font-bold text-purple-600 mb-8">
-              {prizes[wonPrizeIndex].label}
+              {language === 'hi' ? prizes[wonPrizeIndex].labelHi : prizes[wonPrizeIndex].label}
             </p>
 
             <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-8 mb-8">
               <p className="text-gray-800 font-semibold mb-2">
-                🎁 Claim your prize by joining Habuild
+                {t('🎁 Claim your prize by joining Habuild', '🎁 Habuild में शामिल होकर अपना पुरस्कार प्राप्त करें')}
               </p>
               <p className="text-gray-700">
-                Join our yoga community and unlock your exclusive reward!
+                {t('Join our yoga community and unlock your exclusive reward!', 'हमारे योग समुदाय में शामिल हों और अपना एक्सक्लूसिव पुरस्कार अनलॉक करें!')}
               </p>
             </div>
 
@@ -775,7 +782,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="block w-full px-8 py-4 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold text-lg rounded-lg hover:shadow-lg transition-all mb-3"
             >
-              Join Habuild Free Yoga 🧘
+              {t('Join Habuild Free Yoga 🧘', 'Habuild में फ्री योग में शामिल हों 🧘')}
             </a>
 
             <a
@@ -784,19 +791,22 @@ export default function Home() {
               rel="noopener noreferrer"
               className="block w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all mb-3"
             >
-              Share on WhatsApp 💬
+              {t('Share on WhatsApp 💬', 'WhatsApp पर साझा करें 💬')}
             </a>
 
             <button
               onClick={() => {
+                const prizeLabel = language === 'hi' ? prizes[wonPrizeIndex].labelHi : prizes[wonPrizeIndex].label;
                 navigator.clipboard.writeText(
-                  `I just scored ${score}/10 on the Habuild Yoga Quiz and won ${prizes[wonPrizeIndex].label}! 🎉 Can you beat my score? Join me: https://habit.yoga/joinGaurav`
+                  language === 'hi'
+                    ? `मैंने Habuild योग क्विज़ पर ${score}/10 स्कोर किया और ${prizeLabel}! 🎉 क्या आप मेरे स्कोर को हरा सकते हैं? मेरे साथ शामिल हों: https://habit.yoga/joinGaurav`
+                    : `I just scored ${score}/10 on the Habuild Yoga Quiz and won ${prizeLabel}! 🎉 Can you beat my score? Join me: https://habit.yoga/joinGaurav`
                 );
-                alert('Share text copied! 📋');
+                alert(t('Share text copied! 📋', 'शेयर टेक्स्ट कॉपी किया गया! 📋'));
               }}
               className="w-full px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-all"
             >
-              Share & Challenge a Friend 👥
+              {t('Share & Challenge a Friend 👥', 'साझा करें और किसी मित्र को चुनौती दें 👥')}
             </button>
           </div>
         )}
