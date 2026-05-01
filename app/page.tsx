@@ -665,7 +665,7 @@ export default function Home() {
               Congratulations! You're a True Yogi!
             </h2>
             <p className="text-xl text-purple-600 font-semibold mb-8">
-              You scored {score}/{questions.length} — Amazing! 🙌
+              You scored {score}/{getQuestions().length} — Amazing! 🙌
             </p>
 
             {/* Prize Wheel */}
