@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from './lib/supabase';
 
-const questions = [
+const questionsEnglish = [
   {
     question: 'What does "Asana" mean in Sanskrit?',
     options: ['Breathing technique', 'Yoga pose or posture', 'Meditation state', 'Yoga philosophy'],
@@ -56,6 +56,59 @@ const questions = [
   },
 ];
 
+const questionsHindi = [
+  {
+    question: 'संस्कृत में "आसन" का अर्थ क्या है?',
+    options: ['सांस लेने की तकनीक', 'योग मुद्रा या आसन', 'ध्यान की स्थिति', 'योग दर्शन'],
+    correctIndex: 1,
+  },
+  {
+    question: '"वैकल्पिक नासिका श्वसन" किस श्वसन तकनीक को कहा जाता है?',
+    options: ['उज्जायी', 'नाड़ी शोधन', 'कपालभाति', 'भस्त्रिका'],
+    correctIndex: 1,
+  },
+  {
+    question: 'योग दर्शन में कितने मुख्य चक्र स्वीकृत हैं?',
+    options: ['5', '7', '10', '12'],
+    correctIndex: 1,
+  },
+  {
+    question: 'नियमित रूप से योग का प्रमुख लाभ क्या है?',
+    options: ['केवल शारीरिक शक्ति', 'शरीर, मन और आत्मा का संतुलन', 'केवल लचीलापन', 'केवल तनाव से राहत'],
+    correctIndex: 1,
+  },
+  {
+    question: 'किस योग आसन को "अधोमुखी श्वानासन" कहा जाता है?',
+    options: ['भुजंगासन', 'अधोमुखी श्वानासन', 'तड़ासन', 'त्रिकोणासन'],
+    correctIndex: 1,
+  },
+  {
+    question: 'एक शुरुआती को आमतौर पर योग आसन कितने समय तक रोकना चाहिए?',
+    options: ['3-5 सेकंड', '10-30 सेकंड', '2-3 मिनट', '5+ मिनट'],
+    correctIndex: 1,
+  },
+  {
+    question: '"प्राणायाम" का अर्थ क्या है?',
+    options: ['योग दर्शन', 'ध्यान', 'श्वास नियंत्रण', 'योग गति'],
+    correctIndex: 2,
+  },
+  {
+    question: 'कौन सी प्राचीन योग पुस्तक योग दर्शन की नींव मानी जाती है?',
+    options: ['भगवद गीता', 'योग सूत्र पतंजलि', 'उपनिषद', 'वेद'],
+    correctIndex: 1,
+  },
+  {
+    question: '"शवासन" (शव मुद्रा) का उद्देश्य क्या है?',
+    options: ['वार्मिंग अप', 'शक्ति बनाना', 'गहरी छूट और एकीकरण', 'कूल डाउन स्ट्रेच'],
+    correctIndex: 2,
+  },
+  {
+    question: 'योग सूत्र में योग के कितने अंग वर्णित हैं?',
+    options: ['4', '6', '8', '10'],
+    correctIndex: 2,
+  },
+];
+
 const prizes = [
   { label: 'Water Bottle 🍾', emoji: '🍾', color: '#4A90E2' },
   { label: 'Yoga App Access 📱', emoji: '📱', color: '#7C3AED' },
@@ -84,6 +137,7 @@ const getWhatsAppMessage = (finalScore: number, name: string) => {
 };
 
 type Screen = 'welcome' | 'leadCapture' | 'quiz' | 'fail' | 'win' | 'spin' | 'prize';
+type Language = 'en' | 'hi';
 
 // Shuffle options helper
 const shuffleOptions = (options: string[], correctIndex: number) => {
@@ -153,6 +207,7 @@ const PHONE_LENGTH_BY_COUNTRY: { [key: string]: { min: number; max: number } } =
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>('welcome');
+  const [language, setLanguage] = useState<Language>('en');
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswerIndex, setSelectedAnswerIndex] = useState<number | null>(null);
@@ -167,6 +222,10 @@ export default function Home() {
   const [savedRequestIds, setSavedRequestIds] = useState<Set<string>>(new Set());
   const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
   const [phoneError, setPhoneError] = useState('');
+
+  const getQuestions = () => language === 'hi' ? questionsHindi : questionsEnglish;
+
+  const t = (en: string, hi: string) => language === 'hi' ? hi : en;
 
   const handleAnswer = (selectedIndex: number) => {
     // Prevent double-submission during feedback
@@ -322,6 +381,7 @@ export default function Home() {
 
     if (name.trim() && phone.trim() && countryCode && city.trim()) {
       // Shuffle options for each question
+      const questions = getQuestions();
       const shuffled = questions.map(q => {
         const { shuffledOptions, newCorrectIndex } = shuffleOptions(q.options, q.correctIndex);
         return {
@@ -349,6 +409,30 @@ export default function Home() {
               Take our 10-question challenge and win exciting prizes!
             </p>
 
+            {/* Language Selection */}
+            <div className="flex gap-4 justify-center mb-8">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                  language === 'en'
+                    ? 'bg-green-600 text-white shadow-lg'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => setLanguage('hi')}
+                className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+                  language === 'hi'
+                    ? 'bg-green-600 text-white shadow-lg'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                हिन्दी
+              </button>
+            </div>
+
             {/* Prize Preview */}
             <div className="grid grid-cols-2 gap-4 mb-8">
               {prizes.map((prize, idx) => (
@@ -367,7 +451,7 @@ export default function Home() {
               onClick={() => setScreen('leadCapture')}
               className="px-8 py-4 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold text-lg rounded-lg hover:shadow-lg transition-all"
             >
-              Start Quiz 🚀
+              {t('Start Quiz 🚀', 'क्विज़ शुरू करें 🚀')}
             </button>
           </div>
         )}
@@ -375,42 +459,44 @@ export default function Home() {
         {/* Lead Capture Screen */}
         {screen === 'leadCapture' && (
           <div>
-            <h2 className="text-3xl font-bold text-green-700 mb-6 text-center">Before We Begin...</h2>
+            <h2 className="text-3xl font-bold text-green-700 mb-6 text-center">
+              {t('Before We Begin...', 'शुरु करने से पहले...')}
+            </h2>
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Your Name
+                  {t('Your Name', 'आपका नाम')}
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
-                  placeholder="Enter your name"
+                  placeholder={t('Enter your name', 'अपना नाम दर्ज करें')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  City
+                  {t('City', 'शहर')}
                 </label>
                 <input
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
-                  placeholder="Enter your city"
+                  placeholder={t('Enter your city', 'अपना शहर दर्ज करें')}
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Country Code
+                  {t('Country Code', 'देश कोड')}
                 </label>
                 <select
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-gray-800 bg-white"
                 >
-                  <option value="">Select your country code...</option>
+                  <option value="">{t('Select your country code...', 'अपना देश कोड चुनें...')}</option>
                   {COUNTRY_CODES.map((item) => (
                     <option key={item.code + item.country} value={item.code}>
                       {item.code} {item.country}
@@ -420,10 +506,10 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number
+                  {t('Phone Number', 'फोन नंबर')}
                   {countryCode && PHONE_LENGTH_BY_COUNTRY[countryCode] && (
                     <span className="text-gray-600 font-normal">
-                      {' '}({PHONE_LENGTH_BY_COUNTRY[countryCode].min}-{PHONE_LENGTH_BY_COUNTRY[countryCode].max} digits)
+                      {' '}({PHONE_LENGTH_BY_COUNTRY[countryCode].min}-{PHONE_LENGTH_BY_COUNTRY[countryCode].max} {t('digits', 'अंक')})
                     </span>
                   )}
                 </label>
@@ -441,7 +527,7 @@ export default function Home() {
                     className={`flex-1 px-4 py-3 border-2 rounded-lg focus:outline-none text-gray-800 bg-white ${
                       phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-green-600'
                     }`}
-                    placeholder="Your phone number"
+                    placeholder={t('Your phone number', 'आपका फोन नंबर')}
                   />
                 </div>
                 {phoneError && <p className="text-red-500 text-sm mt-2">{phoneError}</p>}
@@ -460,13 +546,13 @@ export default function Home() {
               disabled={!name.trim() || !phone.trim() || !countryCode || !city.trim()}
               className="w-full px-8 py-3 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Let's Go! 🎯
+              {t('Let\'s Go! 🎯', 'चलिए शुरू करें! 🎯')}
             </button>
             <button
               onClick={() => setScreen('welcome')}
               className="w-full mt-3 px-4 py-2 text-gray-600 font-semibold hover:text-green-600"
             >
-              Back
+              {t('Back', 'पीछे')}
             </button>
           </div>
         )}
@@ -533,10 +619,10 @@ export default function Home() {
           <div className="text-center">
             <div className="text-6xl mb-6">😅</div>
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              Oops! Better Luck Next Time
+              {t('Oops! Better Luck Next Time', 'ओह! अगली बार बेहतर किस्मत हो')}
             </h2>
             <p className="text-2xl font-semibold text-purple-600 mb-6">
-              You scored {score > 0 ? score : 0}/{questions.length}
+              You scored {score > 0 ? score : 0}/{getQuestions().length}
             </p>
             <div className="bg-gradient-to-r from-blue-100 to-green-100 rounded-2xl p-8 mb-8">
               <p className="text-lg text-gray-800 mb-2">💡 Wellness Tip:</p>
@@ -551,13 +637,13 @@ export default function Home() {
                 rel="noopener noreferrer"
                 className="block px-6 py-3 bg-green-500 text-white font-bold rounded-lg hover:shadow-lg transition-all"
               >
-                Share on WhatsApp 💬
+                {t('Share on WhatsApp 💬', 'WhatsApp पर साझा करें 💬')}
               </a>
               <button
                 onClick={resetQuiz}
                 className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-purple-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
               >
-                Try Again 🔄
+                {t('Try Again 🔄', 'फिर कोशिश करें 🔄')}
               </button>
               <a
                 href="https://habit.yoga/joinGaurav"
@@ -565,7 +651,7 @@ export default function Home() {
                 rel="noopener noreferrer"
                 className="block px-6 py-3 bg-gray-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
               >
-                Join Habuild FREE anyway 🧘
+                {t('Join Habuild FREE anyway 🧘', 'फिर भी Habuild में FREE शामिल हों 🧘')}
               </a>
             </div>
           </div>
