@@ -129,6 +129,28 @@ const COUNTRY_CODES = [
   { code: '+84', country: 'Vietnam' },
 ];
 
+const PHONE_LENGTH_BY_COUNTRY: { [key: string]: { min: number; max: number } } = {
+  '+1': { min: 10, max: 10 },      // US/Canada/Mexico
+  '+44': { min: 10, max: 11 },     // UK
+  '+91': { min: 10, max: 10 },     // India
+  '+86': { min: 11, max: 11 },     // China
+  '+81': { min: 10, max: 10 },     // Japan
+  '+82': { min: 10, max: 11 },     // South Korea
+  '+33': { min: 9, max: 9 },       // France
+  '+49': { min: 10, max: 11 },     // Germany
+  '+39': { min: 10, max: 10 },     // Italy
+  '+34': { min: 9, max: 9 },       // Spain
+  '+61': { min: 9, max: 9 },       // Australia
+  '+64': { min: 9, max: 10 },      // New Zealand
+  '+27': { min: 9, max: 9 },       // South Africa
+  '+55': { min: 11, max: 11 },     // Brazil
+  '+65': { min: 8, max: 8 },       // Singapore
+  '+60': { min: 9, max: 10 },      // Malaysia
+  '+62': { min: 10, max: 12 },     // Indonesia
+  '+66': { min: 9, max: 10 },      // Thailand
+  '+84': { min: 9, max: 10 },      // Vietnam
+};
+
 export default function Home() {
   const [screen, setScreen] = useState<Screen>('welcome');
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -276,14 +298,25 @@ export default function Home() {
     setWheelRotation(0);
   };
 
-  const validatePhone = (phoneNumber: string): boolean => {
+  const validatePhone = (phoneNumber: string, code: string): boolean => {
     const phoneDigits = phoneNumber.replace(/\D/g, '');
-    return phoneDigits.length === 10;
+    const lengths = PHONE_LENGTH_BY_COUNTRY[code];
+    if (!lengths) return phoneDigits.length >= 8; // fallback
+    return phoneDigits.length >= lengths.min && phoneDigits.length <= lengths.max;
+  };
+
+  const getPhoneErrorMessage = (code: string): string => {
+    const lengths = PHONE_LENGTH_BY_COUNTRY[code];
+    if (!lengths) return 'Please enter a valid phone number';
+    if (lengths.min === lengths.max) {
+      return `Please enter ${lengths.min} digits for this country`;
+    }
+    return `Please enter ${lengths.min}-${lengths.max} digits for this country`;
   };
 
   const startQuiz = () => {
-    if (!validatePhone(phone)) {
-      setPhoneError('Please enter a valid 10-digit phone number');
+    if (!validatePhone(phone, countryCode)) {
+      setPhoneError(getPhoneErrorMessage(countryCode));
       return;
     }
 
@@ -387,7 +420,12 @@ export default function Home() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number (10 digits)
+                  Phone Number
+                  {countryCode && PHONE_LENGTH_BY_COUNTRY[countryCode] && (
+                    <span className="text-gray-600 font-normal">
+                      {' '}({PHONE_LENGTH_BY_COUNTRY[countryCode].min}-{PHONE_LENGTH_BY_COUNTRY[countryCode].max} digits)
+                    </span>
+                  )}
                 </label>
                 <div className="flex gap-2">
                   <div className="flex items-center px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-800 font-semibold whitespace-nowrap">
@@ -407,9 +445,12 @@ export default function Home() {
                   />
                 </div>
                 {phoneError && <p className="text-red-500 text-sm mt-2">{phoneError}</p>}
-                {phone && !phoneError && (
+                {phone && !phoneError && countryCode && (
                   <p className="text-sm text-gray-600 mt-2">
-                    Digits entered: {phone.replace(/\D/g, '').length}/10
+                    Digits entered: {phone.replace(/\D/g, '').length}
+                    {PHONE_LENGTH_BY_COUNTRY[countryCode] && (
+                      <span> / {PHONE_LENGTH_BY_COUNTRY[countryCode].min}-{PHONE_LENGTH_BY_COUNTRY[countryCode].max}</span>
+                    )}
                   </p>
                 )}
               </div>
